@@ -22,10 +22,10 @@ function result = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
   result = true; % assume error
 
   % load the DNGs
-  dngTarget = loadDngRawData(dngTargetFilename);
-  if (!dngTarget.success) return; end
-  dngFlatField = loadDngRawData(dngFlatFieldFilename);
-  if (!dngFlatField.success) return; end
+  [success, dngTarget] = loadDngRawData(dngTargetFilename);
+  if (!success) return; end
+  [success, dngFlatField] = loadDngRawData(dngFlatFieldFilename);
+  if (!success) return; end
 
   % do some validity checks
   if (dngTarget.imageWidth != dngFlatField.imageWidth || dngTarget.imageHeight != dngFlatField.imageHeight)

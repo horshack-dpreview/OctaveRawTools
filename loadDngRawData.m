@@ -9,7 +9,6 @@
 %
 % _Return Values_
 % * dng - Structure containing information and raw data from DNG:
-% * dng.success         - true if raw data completed successfully, false otherwise
 % * dng.exifMap         - containers.Map of all EXIF info
 % * dng.imageWidth      - Number of horizontal pixels in raw data
 % * dng.imageHeight     - Number of vertical pixels in raw data
@@ -19,7 +18,7 @@
 % * dng.cfaPatternMatrix- CFA pattern as 2x2 matrix (0 = Red, 1 = Green, 2 = Blue)
 % * dng.cfaPatternStr   - CFA pattern as 4-character string (ex: "RGGB")
 %
-function dng = loadDngRawData(dngFilename)
+function [success, dng] = loadDngRawData(dngFilename)
 
   function failedMatch = exifMustMatch(tagName, expectedValue)
     if (!strcmpi(exifMap(tagName), expectedValue))
@@ -35,9 +34,8 @@ function dng = loadDngRawData(dngFilename)
     value = str2double(exifMap(tagName));
   end
 
-  % create struct with .success set to false as default in case we have an error
   dng = struct;
-  dng.success = false;
+  success = false; % assume error
 
   % get EXIF data
   exifMap = genExifMap(dngFilename);
@@ -87,7 +85,6 @@ function dng = loadDngRawData(dngFilename)
   imgData = reshape(imgData, [imageWidth imageHeight])';
 
   % all done. build structure that's returned to caller
-  dng.success = true;
   dng.exifMap = exifMap;
   dng.imageWidth = imageWidth;
   dng.imageHeight = imageHeight;
@@ -96,4 +93,5 @@ function dng = loadDngRawData(dngFilename)
   dng.imgData = imgData;
   dng.cfaPatternMatrix = reshape([arrayfun(@str2num, regexprep(exifMap("cfapattern2"), '\s', ''))], [2 2])';
   dng.cfaPatternStr = [arrayfun(@(val) "RGB"(val+1), dng.cfaPatternMatrix'(:))]';
+  success = true;
 end

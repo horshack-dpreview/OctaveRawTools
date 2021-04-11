@@ -13,8 +13,8 @@
 function result = swapRedBlueChannelsInDng(dngFilename)
 
   % load the DNG
-  dng = loadDngRawData(dngFilename);
-  if (!dng.success)
+  [success, dng] = loadDngRawData(dngFilename);
+  if (!success)
     return;
   end
 
