@@ -16,7 +16,7 @@ function [exitCode, output] = runExiftool(argStr)
   % set exiftoolPath to the full path to your exiftool, including executable name.
   % if exiftool is in your system path then you can set exiftoolPath to simply
   % 'exiftool'
-  exiftoolPath = 'c:/miscprogs/exiftool';
+  exiftoolPath = 'exiftool';
 
   % construct full command line to invoke exiftool and its parameters
   fullCmdLine = [exiftoolPath ' ' argStr];
