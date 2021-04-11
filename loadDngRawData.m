@@ -78,7 +78,7 @@ function dng = loadDngRawData(dngFilename)
     return;
   end
 
-  % reshape the data into an image Width x Height matrix
+  % reshape the data into an image Height x Width matrix
   imgData = reshape(imgData, [imageWidth imageHeight])';
 
   % all done. build structure that's returned to caller
