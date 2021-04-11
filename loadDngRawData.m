@@ -39,6 +39,9 @@ function dng = loadDngRawData(dngFilename)
 
   % get EXIF data
   exifMap = genExifMap(dngFilename);
+  if (isempty(exifMap))
+    return;
+  end
 
   % get EXIF values we'll need to process the DNG
   imageWidth = getExifScalar("imagewidth");
