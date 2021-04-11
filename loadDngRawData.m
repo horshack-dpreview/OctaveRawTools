@@ -21,11 +21,13 @@
 %
 function dng = loadDngRawData(dngFilename)
 
-  function exifMustMatch(tagName, expectedValue)
+  function failedMatch = exifMustMatch(tagName, expectedValue)
     if (!strcmpi(exifMap(tagName), expectedValue))
       fprintf('Error: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n', dngFilename,
         tagName, expectedValue, exifMap(tagName));
-      return
+      failedMatch = true;
+    else
+      failedMatch = false;
     end
   end
 
@@ -57,11 +59,11 @@ function dng = loadDngRawData(dngFilename)
   %   Data must be a single strip (#rows per strip = #rows in image)
   %   Expect every pixel to be 16 bits
   %
-  exifMustMatch("compression", "uncompressed");
-  exifMustMatch("photometricinterpretation", "color filter array");
-  exifMustMatch("cfarepeatpatterndim", "2 2");
-  exifMustMatch("rowsperstrip", num2str(imageHeight));
-  exifMustMatch("bitspersample", "16");
+  if (exifMustMatch("compression", "uncompressed")) return; end
+  if (exifMustMatch("photometricinterpretation", "color filter array")) return; end
+  if (exifMustMatch("cfarepeatpatterndim", "2 2")) return; end
+  if (exifMustMatch("rowsperstrip", num2str(imageHeight))) return; end
+  if (exifMustMatch("bitspersample", "16")) return; end
 
   %
   % load the raw data from the DNG
