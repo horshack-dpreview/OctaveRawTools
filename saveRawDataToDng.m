@@ -17,7 +17,8 @@ function result = saveRawDataToDng(dngFilename, stripOffset, imgData)
   result = true; % assume error
 
   % open the DNG
-  if ((file = fopen(dngFilename, "r+")) == -1)
+  file = fopen(dngFilename, "r+");
+  if (file == -1)
     fprintf('Error: "%s" file open failed\n', dngFilename);
     return;
   end

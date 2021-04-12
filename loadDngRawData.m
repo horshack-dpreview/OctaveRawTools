@@ -66,7 +66,8 @@ function [success, dng] = loadDngRawData(dngFilename)
   %
   % load the raw data from the DNG
   %
-  if ((file = fopen(dngFilename, "r")) == -1)
+  file = fopen(dngFilename, "r");
+  if (file == -1)
     fprintf('Error: "%s" file open failed\n', dngFilename);
     return;
   end
