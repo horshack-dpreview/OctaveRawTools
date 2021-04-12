@@ -23,7 +23,7 @@ function [map] = genExifMap(filename)
   % version of the tag names (no spaces)
   %
   [exitCode, exiftoolOutput] = runExiftool(['-s "' filename '"']);
-  if (exitCode != 0)
+  if (exitCode ~= 0)
     return
   end
 

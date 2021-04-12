@@ -14,7 +14,7 @@ function success = swapRedBlueChannelsInDng(dngFilename)
 
   % load the DNG
   [success, dng] = loadDngRawData(dngFilename);
-  if (!success)
+  if (~success)
     return;
   end
 

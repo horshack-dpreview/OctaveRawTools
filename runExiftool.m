@@ -25,7 +25,7 @@ function [exitCode, output] = runExiftool(argStr)
   [exitCode, output] = system(fullCmdLine);
 
   % display error message if exiftool returned error status
-  if (exitCode != 0)
+  if (exitCode ~= 0)
     fprintf('runExiftool: Error exit status (%d) for: %s\n', exitCode, fullCmdLine);
   end
 

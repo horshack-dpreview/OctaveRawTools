@@ -14,6 +14,8 @@
 %
 function success = saveRawDataToDng(dngFilename, stripOffset, imgData)
 
+  SIZE_UINT16 = 2;
+
   success = false; % assume error
 
   % open the DNG
@@ -24,7 +26,7 @@ function success = saveRawDataToDng(dngFilename, stripOffset, imgData)
   end
 
   % seek to where the raw data starts in the file
-  if (fseek(file, stripOffset, -1) != 0)
+  if (fseek(file, stripOffset, -1) ~= 0)
     fprintf('Error: "%s", seek to offset %d failed\n', dngFilename, stripOffset);
     return;
   end
@@ -32,8 +34,8 @@ function success = saveRawDataToDng(dngFilename, stripOffset, imgData)
   % overwrite the raw data, check to make sure we wrote the # bytes we wanted
   numElementsWritten = fwrite(file, imgData', 'uint16');
   fclose(file);
-  if (numElementsWritten != numel(imgData))
-    fprintf('Error: "%s", write request = %d bytes, actual bytes written = %d\n', dngFilename, sizeof(imgData), numElementsWritten*sizeof(uint16(0)));
+  if (numElementsWritten ~= numel(imgData))
+    fprintf('Error: "%s", write request = %d bytes, actual bytes written = %d\n', dngFilename, numel(imgData)*SIZE_UINT16, numElementsWritten*SIZE_UINT16);
     return;
   end
 

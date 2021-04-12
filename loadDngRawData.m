@@ -20,9 +20,11 @@
 %
 function [success, dng] = loadDngRawData(dngFilename)
 
+  SIZE_UINT16 = 2;
+
   function failedMatch = exifMustMatch(tagName, expectedValue)
-    if (!strcmpi(exifMap(tagName), expectedValue))
-      fprintf('Error: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n', dngFilename,
+    if (~strcmpi(exifMap(tagName), expectedValue))
+      fprintf('Error: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n', dngFilename,...
         tagName, expectedValue, exifMap(tagName));
       failedMatch = true;
     else
@@ -57,11 +59,21 @@ function [success, dng] = loadDngRawData(dngFilename)
   %   Data must be a single strip (#rows per strip = #rows in image)
   %   Expect every pixel to be 16 bits
   %
-  if (exifMustMatch("compression", "uncompressed")) return; end
-  if (exifMustMatch("photometricinterpretation", "color filter array")) return; end
-  if (exifMustMatch("cfarepeatpatterndim", "2 2")) return; end
-  if (exifMustMatch("rowsperstrip", num2str(imageHeight))) return; end
-  if (exifMustMatch("bitspersample", "16")) return; end
+  if (exifMustMatch("compression", "uncompressed"))
+    return;
+  end
+  if (exifMustMatch("photometricinterpretation", "color filter array"))
+    return;
+  end
+  if (exifMustMatch("cfarepeatpatterndim", "2 2"))
+    return;
+  end
+  if (exifMustMatch("rowsperstrip", num2str(imageHeight)))
+    return;
+  end
+  if (exifMustMatch("bitspersample", "16"))
+    return;
+  end
 
   %
   % load the raw data from the DNG
@@ -71,14 +83,15 @@ function [success, dng] = loadDngRawData(dngFilename)
     fprintf('Error: "%s" file open failed\n', dngFilename);
     return;
   end
-  if (fseek(file, stripOffset, -1) != 0)
+  if (fseek(file, stripOffset, -1) ~= 0)
     fprintf('Error: "%s", seek to offset %d failed\n', dngFilename, stripOffset);
     return;
   end
-  imgData = fread(file, stripByteCount / sizeof(uint16(0)), 'uint16=>uint16');
+  imgData = fread(file, stripByteCount / SIZE_UINT16, 'uint16=>uint16');
+  bytesRead = numel(imgData)*SIZE_UINT16;
   fclose(file);
-  if (sizeof(imgData) != stripByteCount)
-    fprintf('Error: "%s", read request = %d bytes, actual bytes read = %d\n', dngFilename, stripByteCount, sizeof(imgData));
+  if (bytesRead ~= stripByteCount)
+    fprintf('Error: "%s", read request = %d bytes, actual bytes read = %d\n', dngFilename, stripByteCount, bytesRead);
     return;
   end
 
@@ -92,7 +105,8 @@ function [success, dng] = loadDngRawData(dngFilename)
   dng.stripOffset = stripOffset;
   dng.stripByteCount = stripByteCount;
   dng.imgData = imgData;
-  dng.cfaPatternMatrix = reshape([arrayfun(@str2num, regexprep(exifMap("cfapattern2"), '\s', ''))], [2 2])';
-  dng.cfaPatternStr = [arrayfun(@(val) "RGB"(val+1), dng.cfaPatternMatrix'(:))]';
+  dng.cfaPatternMatrix = reshape(arrayfun(@str2num, regexprep(exifMap("cfapattern2"), '\s', '')), [2 2])';
+  strRgb = 'RGB'; dng.cfaPatternStr = arrayfun(@(val) strRgb(str2num(val)+1), regexprep(exifMap("cfapattern2"), '\s', ''));
+
   success = true;
 end

@@ -23,12 +23,12 @@ function success = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
 
   % load the DNGs
   [success, dngTarget] = loadDngRawData(dngTargetFilename);
-  if (!success) return; end
+  if (~success) return; end
   [success, dngFlatField] = loadDngRawData(dngFlatFieldFilename);
-  if (!success) return; end
+  if (~success) return; end
 
   % do some validity checks
-  if (dngTarget.imageWidth != dngFlatField.imageWidth || dngTarget.imageHeight != dngFlatField.imageHeight)
+  if (dngTarget.imageWidth ~= dngFlatField.imageWidth || dngTarget.imageHeight ~= dngFlatField.imageHeight)
     fprintf('Target and Flat field DNGs have different image dimensions\n');
     return;
   end
