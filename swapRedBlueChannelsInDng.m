@@ -8,9 +8,9 @@
 % * dngFilename       - Filename of DNG to swap the R/B channels of
 %
 % _Return Values_
-% * result            - false if successful, true if error
+% * success           - true if successful, false if error
 %
-function result = swapRedBlueChannelsInDng(dngFilename)
+function success = swapRedBlueChannelsInDng(dngFilename)
 
   % load the DNG
   [success, dng] = loadDngRawData(dngFilename);
@@ -28,7 +28,7 @@ function result = swapRedBlueChannelsInDng(dngFilename)
   imgDataOut = channelsToRawBayer(dng.cfaPatternStr, b, g1, g2, r);
 
   % update the DNG with the new data
-  result = saveRawDataToDng(dngFilename, dng.stripOffset, imgDataOut);
+  success = saveRawDataToDng(dngFilename, dng.stripOffset, imgDataOut);
 
 end
 

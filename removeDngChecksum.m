@@ -12,14 +12,14 @@
 % * dngFilename - Filename of DNG to remove the MD5 digest from
 %
 % _Return Values_
-% * result      - false if successful, true if error
+% * success     - true if successful, false if error
 %
-function result = removeDngChecksum(dngFilename)
+function success = removeDngChecksum(dngFilename)
 
   %
   % run exiftool and specify an empty value for the NewRawImageDigest tag
   %
   [exitCode, exiftoolOutput] = runExiftool(['-NewRawImageDigest= -overwrite_original "' dngFilename '"']);
-  result = (exitCode != 0);
+  success = (exitCode == 0);
 
 end

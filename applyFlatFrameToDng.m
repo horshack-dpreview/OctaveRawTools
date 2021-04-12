@@ -10,16 +10,16 @@
 % * dngFlatFieldFilename  - Filename of DNG flat-field image (must be uncompressed)
 %
 % _Return Values_
-% * result                - false if successful, true if error
+% * success               - true if successful, false if error
 %
 %
-function result = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
+function success = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
 
   function avg = calcChannelCenterAverage(channelData)
     avg = mean(channelData(floor(end/2-128):floor(end/2+128), floor(end/2-128):floor(end/2+128))(:));
   end
 
-  result = true; % assume error
+  success = false; % assume error
 
   % load the DNGs
   [success, dngTarget] = loadDngRawData(dngTargetFilename);
@@ -53,6 +53,6 @@ function result = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
   imgDataOut = channelsToRawBayer(dngTarget.cfaPatternStr, r, g1, g2, b);
 
   % update the DNG with the new data
-  result = saveRawDataToDng(dngTargetFilename, dngTarget.stripOffset, imgDataOut);
+  success = saveRawDataToDng(dngTargetFilename, dngTarget.stripOffset, imgDataOut);
 
 end

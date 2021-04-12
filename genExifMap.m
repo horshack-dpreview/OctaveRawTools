@@ -11,7 +11,8 @@
 % * map - containers.Map where each key is an EXIF tag name and each value
 % is the value for that tag. The map can then be used like an assocative array
 % to look up tag values. For example: map("iso") will return the value of the
-% "ISO" EXIF tag. All tag names are converted to lowercase.
+% "ISO" EXIF tag. All tag names are converted to lowercase. An empty map is
+% returned if an error occurs.
 %
 function [map] = genExifMap(filename)
 

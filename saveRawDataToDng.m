@@ -10,11 +10,11 @@
 % * imgData     - Image data to write, in [Rows Columns] orientation
 %
 % _Return Values_
-% * result      - false if successful, true if error
+% * success     - true if successful, false if error
 %
-function result = saveRawDataToDng(dngFilename, stripOffset, imgData)
+function success = saveRawDataToDng(dngFilename, stripOffset, imgData)
 
-  result = true; % assume error
+  success = false; % assume error
 
   % open the DNG
   file = fopen(dngFilename, "r+");
@@ -48,6 +48,6 @@ function result = saveRawDataToDng(dngFilename, stripOffset, imgData)
   % no longer match the raw data we've modified
   %
 
-  result = false;
+  success = true;
 
 end
