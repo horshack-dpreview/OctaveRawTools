@@ -50,7 +50,7 @@ function [map] = genExifMap(filename)
   %    ...
   %   }
   %
-  
+
   %
   % Workaround: Some DNG translations cause certain EXIF tags to become corrupted
   % with invalid UTF-8 encoding, at least as decided by exiftool. For example,
@@ -61,7 +61,7 @@ function [map] = genExifMap(filename)
   % to ASCII we'll likely be screwing up localization in non-english speaking locales.
   %
   exiftoolOutput = char(unicode2native(exiftoolOutput, 'ISO-8859-1'));
-  
+
   exifToolTagValuePairs = regexp(exiftoolOutput, ['(\S*)\s*:\s*(.*?)[\r|\n]'], 'tokens');
   numTagValuePairs = size(exifToolTagValuePairs, 2);
 
