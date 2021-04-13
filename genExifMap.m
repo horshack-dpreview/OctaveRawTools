@@ -50,6 +50,18 @@ function [map] = genExifMap(filename)
   %    ...
   %   }
   %
+  
+  %
+  % Workaround: Some DNG translations cause certain EXIF tags to become corrupted
+  % with invalid UTF-8 encoding, at least as decided by exiftool. For example,
+  % the "NoiseReductionParams" tag in Panasonic GX85 files converted to DNG. If we
+  % pass regexp() a UTF-8 string with any invalid characters it will fail. To avoid
+  % this I convert exiftool's output from UTF-8 to ISO-8859-1, which serves to convert
+  % the invalid UTF-8 values into ASCII gibberish. By converting from UTF-8
+  % to ASCII we'll likely be screwing up localization in non-english speaking locales.
+  %
+  exiftoolOutput = char(unicode2native(exiftoolOutput, 'ISO-8859-1'));
+  
   exifToolTagValuePairs = regexp(exiftoolOutput, ['(\S*)\s*:\s*(.*?)[\r|\n]'], 'tokens');
   numTagValuePairs = size(exifToolTagValuePairs, 2);
 
