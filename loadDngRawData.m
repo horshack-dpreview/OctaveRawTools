@@ -32,8 +32,30 @@ function [success, dng] = loadDngRawData(dngFilename)
     end
   end
 
+  function exifShouldMatch(tagName, expectedValue)
+    if (~strcmpi(exifMap(tagName), expectedValue))
+      fprintf('Warning: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n', dngFilename,...
+        tagName, expectedValue, exifMap(tagName));
+    end
+  end
+
   function value = getExifScalar(tagName)
     value = str2double(exifMap(tagName));
+  end
+
+  function [imageHeight, imageWidth] = getExifActiveAreaHeightWidth()
+    %
+    % convert "activearea" EXIF to an image and hight. format of
+    % the activearea tag is: "top left bottom right". Example: "0 0 4000 6000"
+    %
+    activeAreaStr = exifMap("activearea");
+    valuesStrCell = regexp(activeAreaStr,  ['\s*([0-9]*)\s*'], 'tokens');
+    top     = str2num(valuesStrCell{1}{1});
+    left    = str2num(valuesStrCell{2}{1});
+    bottom  = str2num(valuesStrCell{3}{1});
+    right   = str2num(valuesStrCell{4}{1});
+    imageHeight = bottom - top;
+    imageWidth = right - left;
   end
 
   dng = struct;
@@ -46,22 +68,57 @@ function [success, dng] = loadDngRawData(dngFilename)
   end
 
   % get EXIF values we'll need to process the DNG
-  imageWidth = getExifScalar("imagewidth");
-  imageHeight = getExifScalar("imageheight");
   stripOffset = getExifScalar("stripoffsets");
   stripByteCount = getExifScalar("stripbytecounts");
+  imageWidth = getExifScalar("imagewidth");
+  imageHeight = getExifScalar("imageheight");
 
   %
-  % run some validity checks based on the EXIF:
-  %   Must be uncompressed
+  % some cameras report the "correct" image dimensions via the iamgewidth
+  % and imageheight EXIF tags whereas others such as the Panasonic GX85 only
+  % report the correct dimensions via the activearea tag. Fortunately we can
+  % determine which is correct by comparing the product of the dimensions
+  % against the size of the raw data
+  %
+  if (imageWidth * imageHeight * SIZE_UINT16 != stripByteCount)
+    %
+    % imagewidth and imageheight tags don't match raw data size. try matching
+    % using the activearea tag
+    %
+    [imageHeight, imageWidth] = getExifActiveAreaHeightWidth();
+    if (imageWidth * imageHeight * SIZE_UINT16 != stripByteCount)
+      fprintf("Can't find a match for EXIF image height/width vs raw data size\n");
+      return;
+    end
+  end
+
+
+  %
+  % run some validity checks based on the EXIF, some of which yield warnings
+  % whereas others are fatal. Here is the list:
+  %
+  %   Should be uncompressed
+  %   Should report 16-bits per pixel
   %   Must be raw data (CFA)
   %   Must be a 2x2 CFA pattern
   %   Data must be a single strip (#rows per strip = #rows in image)
-  %   Expect every pixel to be 16 bits
   %
-  if (exifMustMatch("compression", "uncompressed"))
-    return;
-  end
+
+  %
+  % Note: Some DNG translations don't report "Uncompressed" for the
+  % the compression field even though the data is uncompressed. For example,
+  % the GX85 reports "Panasonic RAW 1". Assume this is ok. Note that if it's
+  % not uncompressed then any modifications to the data done in these
+  % scripts will completely mangle the raw data area of the DNG
+  %
+  exifShouldMatch("compression", "uncompressed");
+
+  %
+  % Note: Some DNG translations show < 16 bits per sample even though the
+  % data is actually encoded as 16 bits. For example, the GX85 reports 12 bits
+  %
+  exifShouldMatch("bitspersample", "16");
+
   if (exifMustMatch("photometricinterpretation", "color filter array"))
     return;
   end
@@ -69,9 +126,6 @@ function [success, dng] = loadDngRawData(dngFilename)
     return;
   end
   if (exifMustMatch("rowsperstrip", num2str(imageHeight)))
-    return;
-  end
-  if (exifMustMatch("bitspersample", "16"))
     return;
   end
 

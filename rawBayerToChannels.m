@@ -13,20 +13,11 @@
 %
 function [r, g1, g2, b] = rawBayerToChannels(cfaPatternStr, imgData)
 
-  switch (cfaPatternStr)
-    case "RGGB"
-      redGreen1_FirstRow = 1;
-      green2Blue_FirstRow = 2;
-    case "GBRG"
-      redGreen1_FirstRow = 2;
-      green2Blue_FirstRow = 1;
-    otherwise
-      assert(0, "Unsupported CFA pattern string");
-  end
+  s = cfaPatternStrToCfaPos(cfaPatternStr);
 
-  r  = double(imgData(redGreen1_FirstRow:2:end, 1:2:end));
-  g1 = double(imgData(redGreen1_FirstRow:2:end, 2:2:end));
-  g2 = double(imgData(green2Blue_FirstRow:2:end, 1:2:end));
-  b  = double(imgData(green2Blue_FirstRow:2:end, 2:2:end));
+  r  = double(imgData(s.redGreen1_FirstRow:2:end, s.redGreen1Row_Red_FirstCol:2:end));
+  g1 = double(imgData(s.redGreen1_FirstRow:2:end, s.redGreen1Row_Green1_FirstCol:2:end));
+  g2 = double(imgData(s.green2Blue_FirstRow:2:end, s.green2BlueRow_Green2FirstCol:2:end));
+  b  = double(imgData(s.green2Blue_FirstRow:2:end, s.green2BlueRow_BlueFirstCol:2:end));
 
 end
