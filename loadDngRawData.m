@@ -45,7 +45,7 @@ function [success, dng] = loadDngRawData(dngFilename)
 
   function [imageHeight, imageWidth] = getExifActiveAreaHeightWidth()
     %
-    % convert "activearea" EXIF to an image and hight. format of
+    % convert "activearea" EXIF tag to a width and height. The format of
     % the activearea tag is: "top left bottom right". Example: "0 0 4000 6000"
     %
     activeAreaStr = exifMap("activearea");
