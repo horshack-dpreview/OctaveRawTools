@@ -19,7 +19,7 @@ function [exitCode, output] = runDngConverter(argStr)
   elseif (ismac)
     dngConverterPath = 'open -a "/Applications/AdobeDNGConverter.app/Contents/MacOS/AdobeDNGConverter" --args';
   else
-    assert("Unsupported OS platform");
+    assert(false, "Unsupported OS platform");
   end
 
   % make sure we have the right path to the DNG converter
