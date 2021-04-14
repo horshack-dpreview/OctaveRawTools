@@ -22,9 +22,9 @@ function success = applyFlatFrameToDng(dngTargetFilename, dngFlatFieldFilename)
   success = false; % assume error
 
   % load the DNGs
-  [success, dngTarget] = loadDngRawData(dngTargetFilename);
+  [success, dngTarget] = loadDngRawData(dngTargetFilename, {});
   if (~success) return; end
-  [success, dngFlatField] = loadDngRawData(dngFlatFieldFilename);
+  [success, dngFlatField] = loadDngRawData(dngFlatFieldFilename, {});
   if (~success) return; end
 
   % do some validity checks

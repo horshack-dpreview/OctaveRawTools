@@ -6,6 +6,8 @@
 %
 % _Parameters_
 % * dngFilename - Filename of DNG to read
+% * exifMap     - Optional: EXIF map if already read by caller. Pass {} if you
+%                 haven't already read the EXIF (this routine will read it)
 %
 % _Return Values_
 % * dng - Structure containing information and raw data from DNG:
@@ -18,7 +20,7 @@
 % * dng.cfaPatternMatrix- CFA pattern as 2x2 matrix (0 = Red, 1 = Green, 2 = Blue)
 % * dng.cfaPatternStr   - CFA pattern as 4-character string (ex: "RGGB")
 %
-function [success, dng] = loadDngRawData(dngFilename)
+function [success, dng] = loadDngRawData(dngFilename, exifMap)
 
   SIZE_UINT16 = 2;
 
@@ -62,9 +64,11 @@ function [success, dng] = loadDngRawData(dngFilename)
   success = false; % assume error
 
   % get EXIF data
-  exifMap = genExifMap(dngFilename);
-  if (isempty(exifMap))
-    return;
+  if (~exist('exifMap') || isempty(exifMap))
+    exifMap = genExifMap(dngFilename);
+    if (isempty(exifMap))
+      return;
+    end
   end
 
   % get EXIF values we'll need to process the DNG
@@ -80,13 +84,13 @@ function [success, dng] = loadDngRawData(dngFilename)
   % determine which is correct by comparing the product of the dimensions
   % against the size of the raw data
   %
-  if (imageWidth * imageHeight * SIZE_UINT16 != stripByteCount)
+  if (imageWidth * imageHeight * SIZE_UINT16 ~= stripByteCount)
     %
     % imagewidth and imageheight tags don't match raw data size. try matching
     % using the activearea tag
     %
     [imageHeight, imageWidth] = getExifActiveAreaHeightWidth();
-    if (imageWidth * imageHeight * SIZE_UINT16 != stripByteCount)
+    if (imageWidth * imageHeight * SIZE_UINT16 ~= stripByteCount)
       fprintf("Can't find a match for EXIF image height/width vs raw data size\n");
       return;
     end

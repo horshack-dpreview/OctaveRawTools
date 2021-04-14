@@ -41,7 +41,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
   function [index, serialCreationDate, exifMap] = loadNextFileInfo(indexPrevFile)
     % get next file
     index = nextFileInListing(indexPrevFile);
-    if (index != -1)
+    if (index ~= -1)
       % load EXIF
       exifMap = genExifMap(fullfile(listing(index).folder, listing(index).name));
       % convert creation date to serial date for use in time comparisons
@@ -64,6 +64,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
 
   success = false; % assume error
   numStacksCreated  = 0;
+  timeStart = time();
 
   %
   % convert the source files into uncompressed DNGs, storing them
@@ -85,108 +86,118 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     return;
   end
 
-  % get a list of DNGs we just created
-  listing = dir(tempDir);
+  % get EXIF info for all the DNGs created
+  [filenamesWithPathList, exifMapList] = genExifMapForDir(tempDir);
+  numFiles = numel(exifMapList);
+  if (numFiles == 0)
+    % error obtaining EXIF info
+    return;
+  end
 
   %
   % process files in directory, looking for collections of images to stack
   %
-  indexLastFileProcessed = 0;
-  numStacksCreatedLastScanningPrint = -1;
-  while (indexLastFileProcessed ~= -1)
+  indexNextFileToProcess = 1;
+  fprintf('Scanning DNGs to find related images for each stack...\n');
+  while (indexNextFileToProcess <= numFiles)
 
-    if (numStacksCreatedLastScanningPrint != numStacksCreated)
-      numStacksCreatedLastScanningPrint = numStacksCreated;
-      fprintf('Scanning DNGs to find related images for next stack...\n');
-    end
+    %
+    % select next file as the 1st file of our new prospective stack
+    %
+    stack = struct;
+    numFilesThisStack = 1;
+    indexFirstFileThisStack = indexNextFileToProcess;
+    sdPrevFile = exifDateStrToSerialDate(exifMapList{indexFirstFileThisStack}("createdate"));
 
-      %
-      % load EXIF info for next file that will serve as the 1st file
-      % of our new prospective stack. the only EXIF info we really need is
-      % the creation date since that's what we used to determine which
-      % images belong in the same stack.
-      %
-      stack = struct;
-      numFilesThisStack = 1;
-      [stack(1).index, sdPrevFile, stack(1).exifMap] = loadNextFileInfo(indexLastFileProcessed);
-      if (stack(1).index == -1)
+    %
+    % now see what other files after our candidate should be in the stame stack
+    %
+    indexNextFileInStack = indexFirstFileThisStack+1;
+    while (indexNextFileInStack <= numFiles)
+
+      % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
+      sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}("createdate"));
+      if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > 2.0)
+        % this file is not part of the stack we're currently building
+        break;
+      end
+      if (sdThisFile < sdPrevFile)
+        % file is older than previous. this shouldn't happen unless the camera's DCIM file names wrapped
+        fprintf('Warning: File "%s" has an older date than "%s" - not stacking it\n',...
+          filenamesWithPathList{indexNextFileInStack}, filenamesWithPathList{indexNextFileInStack-1});
         break;
       end
 
-      %
-      % load EXIF info for additional files that will be part of the same stack.
-      % We assume a DNG is part of the same stack if its creation date is
-      % within 2 seconds of the previous DNG
-      %
-      while true
+      % prepare to advance to next file candiate of this stack
+      indexNextFileInStack = indexNextFileInStack+1;
+      numFilesThisStack = numFilesThisStack+1;
+      sdPrevFile = sdThisFile;
+    end
 
-        % load EXIF for next file in listing
-        [stack(numFilesThisStack+1).index, sdThisFile, stack(numFilesThisStack+1).exifMap] = loadNextFileInfo( stack(numFilesThisStack).index );
-        if (stack(numFilesThisStack+1).index == -1)
-          break;
-        end
+    indexNextFileToProcess = indexNextFileToProcess+numFilesThisStack; % so main loop knows which file to start with on next iteration
 
-        % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
-        if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > 2.0)
-          % this file is not part of the stack we're currently building
-          break;
-        end
+    if (numFilesThisStack == 1)
+      % our stack candidate turned out to be a bust. advance to next candidate
+      fprintf('Not stacking "%s"\n', filenamesWithPathList{indexFirstFileThisStack});
+      continue;
+    end
 
-        % prepare to advance to next file candiate of this stack
-        numFilesThisStack = numFilesThisStack+1;
-        sdPrevFile = sdThisFile;
+    %
+    % load the raw data for each DNG in the stack
+    %
+    fprintf('Loading raw data for %d DNGs\n', numFilesThisStack);
+    for i=1: numFilesThisStack
+      [sucess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+      if (~success)
+        break;
       end
+    end
 
-      indexLastFileProcessed = stack(numFilesThisStack).index; % so main loop knows which file to start with on next iteration
+    % create 3D matrix ofthe raw data from all DNGs
+    rawDataStack = [];
+    for i=1: numFilesThisStack
+      rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
+    end
 
-      if (numFilesThisStack == 1)
-        % our stack candidate turned out to be a bust. advance to next candidate
-        continue;
-      end
+    % calculate the median of all the raw data
+    imgDataMedian = median(rawDataStack, 3);
 
-      %
-      % load the raw data for each DNG in the stack
-      %
-      fprintf('Loading raw data for %d DNGs\n', numFilesThisStack);
-      for i=1: numFilesThisStack
-        [sucess, stack(i).dngStruct] = loadDngRawData(fullfile(listing(stack(i).index).folder, listing(stack(i).index).name));
-        if (~success)
-          break;
-        end
-      end
+    %
+    % generate the output DNG to hold the median stacked data. We do this
+    % by creating a copy of the first DNG in the stack, to serve as the container
+    % for the modified raw data, then write the raw data to the copy.
+    %
+    % The output filename is equal to the filename of the first DNG in the stack,
+    % with "_x_Stacked" appended before the extension, where <x>
+    % is the number of images used to create the stack
+    %
 
-      % create 3D matrix ofthe raw data from all DNGs
-      rawDataStack = [];
-      for i=1: numFilesThisStack
-        rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
-      end
+    firstImageInStackFilenameWithPath = filenamesWithPathList{indexFirstFileThisStack};
 
-      % calculate the median of all the raw data
-      imgDataMedian = median(rawDataStack, 3);
+    % construct filename of output
+    [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
+    outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked' ext];
+    outputFilenameWithPath = fullfile(outputDir, outputFilename);
 
-      %
-      % generate the output DNG to hold the median stacked data. We do this
-      % by creating a copy of the first DNG in the stack, to serve as the container
-      % for the modified raw data, then write the raw data to the copy.
-      %
-      % The output filename is equal to the filename of the first DNG in the stack,
-      % with "_x_Stacked" appended before the extension, where <x>
-      % is the number of images used to create the stack
-      %
+    % tell user about the stack we're creating
+    fprintf('Creating stacked image "%s" from the following (%d) files:\n', outputFilenameWithPath, numFilesThisStack);
+    for i=1: numFilesThisStack
+      fprintf("   -> %s\n", filenamesWithPathList{indexFirstFileThisStack+i-1});
+    end
 
-      firstImageInStackFilenameWithPath = fullfile(listing(stack(1).index).folder, listing(stack(1).index).name);
+    % copy the 1st image in the stack as our output file
+    success = copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
+    if (~success)
+      break;
+    end
 
-      % construct filename of output
-      [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
-      outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked' ext];
-      outputFilenameWithPath = fullfile(outputDir, outputFilename);
+    % overwrite the raw data of the output file with the calculated median data
+    saveRawDataToDng(outputFilenameWithPath, stack(1).dngStruct.stripOffset, imgDataMedian);
+    if (~success)
+      break;
+    end
 
-      % copy the 1st image in the stack as our output file
-      fprintf('Creating stacked image "%s"\n', outputFilenameWithPath);
-      copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
-      saveRawDataToDng(outputFilenameWithPath, stack(1).dngStruct.stripOffset, imgDataMedian);
-
-      numStacksCreated = numStacksCreated+1;
+    numStacksCreated = numStacksCreated+1;
 
   end
 
@@ -194,8 +205,11 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
   deleteTempDir(tempDir);
 
   % success if we reached end of file list without encountering errors
-  if (indexLastFileProcessed == -1)
-    success = true;
+  sucess = (indexNextFileInStack > numFiles);
+
+  if (success)
+    fprintf("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
+
   end
 
 end

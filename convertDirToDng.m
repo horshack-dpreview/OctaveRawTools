@@ -24,6 +24,10 @@ function [success, numDngsCreated] = convertDirToDng(sourceDir, destDir)
   % limit on the number of files per invocation, to keep the size of the command
   % line reasonable for situations where there are hundreds of files to process
   %
+  % Note that running the DNG converter's GUI is much faster than invoking
+  % from the command line, even when we pass it the full list of files on
+  % the command line :(
+  %
   MAX_FILES_PER_CONVERSION  = 32;
 
   success = false; % assume error
@@ -60,7 +64,7 @@ function [success, numDngsCreated] = convertDirToDng(sourceDir, destDir)
     % perform the conversion
     if (numFilesThisConversion > 0)
       [exitCode, output] = runDngConverter(['-u -d "' destDir '" ' fileListStr]);
-      if (exitCode != 0)
+      if (exitCode ~= 0)
         fprintf('Error: DNG conversion reported error = %d for the following cmd line: %s. Perhaps the directory contained non-image files?\n', exitCode, fullCmdLine);
         return;
       end

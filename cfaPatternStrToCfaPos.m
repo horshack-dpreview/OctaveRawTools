@@ -24,7 +24,7 @@ function s = cfaPatternStrToCfaPos(cfaPatternStr)
 
   s = struct;
 
-  assert(cfaPatternStr == 'RGGB' || cfaPatternStr == 'GBRG' || cfaPatternStr == 'GRBG' || cfaPatternStr == 'BGGR');
+  assert(cfaPatternStr == "RGGB" || cfaPatternStr == "GBRG" || cfaPatternStr == "GRBG" || cfaPatternStr == "BGGR");
 
   % determine row layout, ie whether R/G1 or G2/B is the first row
   s.redGreen1_FirstRow   = int32(find(cfaPatternStr == 'R'))/2;
