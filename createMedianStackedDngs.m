@@ -157,6 +157,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     rawDataStack = [];
     for i=1: numFilesThisStack
       rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
+      stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
     end
 
     % calculate the median of all the raw data
