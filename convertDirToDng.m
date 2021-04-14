@@ -65,7 +65,6 @@ function [success, numDngsCreated] = convertDirToDng(sourceDir, destDir)
     if (numFilesThisConversion > 0)
       [exitCode, output] = runDngConverter(['-u -d "' destDir '" ' fileListStr]);
       if (exitCode ~= 0)
-        fprintf('Error: DNG conversion reported error = %d for the following cmd line: %s. Perhaps the directory contained non-image files?\n', exitCode, fullCmdLine);
         return;
       end
       numFilesConverted = numFilesConverted + numFilesThisConversion;
