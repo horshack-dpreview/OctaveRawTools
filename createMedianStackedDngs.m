@@ -147,7 +147,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     %
     fprintf('Loading raw data for %d DNGs\n', numFilesThisStack);
     for i=1: numFilesThisStack
-      [sucess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+      [success, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
       if (~success)
         break;
       end
@@ -205,7 +205,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
   deleteTempDir(tempDir);
 
   % success if we reached end of file list without encountering errors
-  sucess = (indexNextFileInStack > numFiles);
+  success = (indexNextFileInStack > numFiles);
 
   if (success)
     fprintf("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
