@@ -11,12 +11,6 @@
 %
 function [tempDirPath] = createTempDir(argStr)
 
-  % debug-debug
-  tempDirPath = 'F:/vmxferhd/downloads/test/001';
-  mkdir(tempDirPath);
-  return;
-  % debug-debug
-
   t = tempname;
   status = mkdir(t);
   if (status == 1)
