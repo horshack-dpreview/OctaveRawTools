@@ -16,12 +16,16 @@ function [exitCode, output] = runExiftool(argStr)
   % set exiftoolPath to the full path to your exiftool, including executable name.
   % if exiftool is in your system path then you can set exiftoolPath to simply
   % 'exiftool'
-  exiftoolPath = 'exiftool';
+  if (ismac)
+    exiftoolPath = '/usr/local/bin/exiftool';
+  else
+    exiftoolPath = 'exiftool'
+  end
 
   % construct full command line to invoke exiftool and its parameters
   fullCmdLine = [exiftoolPath ' ' argStr];
 
-  % invokve exiftool
+  % invoke exiftool
   [exitCode, output] = system(fullCmdLine);
 
   % display error message if exiftool returned error status

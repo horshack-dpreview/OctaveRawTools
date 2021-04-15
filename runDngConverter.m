@@ -17,7 +17,7 @@ function [exitCode, output] = runDngConverter(argStr)
   if (ispc)
     dngConverterPath = 'C:/Program Files/Adobe/Adobe DNG Converter/Adobe DNG Converter.exe';
   elseif (ismac)
-    dngConverterPath = 'open -a "/Applications/AdobeDNGConverter.app/Contents/MacOS/AdobeDNGConverter" --args';
+    dngConverterPath = '/Applications/Adobe DNG Converter.app/Contents/MacOS/Adobe DNG Converter';
   else
     assert(false, "Unsupported OS platform");
   end
@@ -28,7 +28,7 @@ function [exitCode, output] = runDngConverter(argStr)
     return;
   end
 
-  % run
+  % invoke the DNG converter
   fullCmdLine = ['"' dngConverterPath '" ' argStr];
   [exitCode, output] = system(fullCmdLine);
 
