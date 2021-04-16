@@ -30,7 +30,7 @@ To run the script with default options, enter the following in the command windo
 
 `createStackedDngs("source directory")`
 
-"source directory" is the full path to the directory with the raw files you want to stack. Include the quotes to handle paths that have spaces in them. The directory should contain only raw files - if there are any non-raw image files, including hidden files like .DS_Store on OSX, then the Adobe DNG conversion will fail. As an alternate to requiring only raw files in the directory, you can include a filespec in the source directory path so that the conversion will ignore any other file types. For example, **/Users/YourName/myimages/*.ARW**. Note the mask is case-sensitive, so be sure to match the case of the extension to that of your raw files.
+"source directory" is the full path to the directory with the raw files you want to stack. Include the quotes to handle paths that have spaces in them. The directory should contain only raw files - if there are any non-raw image files, including hidden files like .DS_Store on OSX, then the Adobe DNG conversion will fail. As an alternate to requiring only raw files in the directory, you can include a filespec in the source directory path so that the conversion will ignore any other file types. For example, **"/Users/YourName/myimages/*.ARW"**. Note the mask is case-sensitive, so be sure to match the case of the extension to that of your raw files.
 
 Here are the steps the script performs in its default configuration:
 1. Creates a temporary directory to hold intermediate files, using your system's temporary folder. For example, on Windows 10 this will be "C:\Users\\<username\>\AppData\Local\Temp\".
@@ -38,7 +38,7 @@ Here are the steps the script performs in its default configuration:
 3. Reads the EXIF metadata from all the converted DNG files by invoking the exiftool utility.
 4. Processes the EXIF to automatically find groups of related files to stack together. Files are considered part of the same stack if their EXIF "CreateDate" tag is within 2 seconds of each other.
 5. When a group of related files is found (by EXIF creation date), the raw data from the DNGs is loaded into memory and the mean or median is calculated for every pixel.
-6. Stores the calculated data into a new file by duplicating the first DNG file and then overwriting the raw data with the calculated data. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Mean` or `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files staacked via the mean method, the output filename will be `DSC00524_8_Stacked_Mean.DNG`. The file will be stored in the same directory as "source directory".
+6. Stores the calculated data into a new file by duplicating the first DNG file and then overwriting the raw data with the calculated data. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Mean` or `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files stacked via the mean method, the output filename will be `DSC00524_8_Stacked_Mean.DNG`. The file will be stored in the same directory as "source directory".
 7. The script returns to step 5 until all files are processed.
 
 ### Additional Options
