@@ -1,5 +1,3 @@
-
-
 # Octave Raw Tools
 
 Collection of Octave/Matlab functions for working with DNG raw image files, including reading, modifying, and writing the raw CFA bayer data contained in DNG raw image files.
@@ -56,7 +54,7 @@ Here are the steps the script performs in its default configuration:
 
 `'maxtimedelta', value` - Sets the maximum EXIF CreateDate tag time delta in seconds between images to be considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to disable the time delta check - all files will be considered part of a single stack.
 
-Examples:
+#### Sample Command Lines
 `createStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')`- The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory, then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs into `c:\pics\myraws`.
 
 `createStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')`- The script will use the raws you previously converted into uncompressed DNGs, apply the `mean` algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
