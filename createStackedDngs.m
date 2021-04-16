@@ -69,20 +69,18 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   SERIAL_DATE_VALUE_PER_SECOND  = double(1/(24*60*60));
 
+  %
+  % converts an EXIF CreateDate tag value into a Matab/Octave "serial date",
+  % which contains the number of days in the integer portion and fractions
+  % of a day in the decimal portion
+  %
   function serialDate = exifDateStrToSerialDate(exifDateStr)
     serialDate = datenum(exifDateStr, "yyyy:mm:dd HH:MM:SS");
   end
 
-  function indexNextFile = nextFileInListing(indexPrevFile)
-    for i=indexPrevFile+1:numel(listing)
-      if listing(i).isdir == false
-        indexNextFile = i;
-        return;
-      end
-    end
-    indexNextFile = -1;
-  end
-
+  %
+  % processes any optional arguments passed
+  %
   function [success, argValues] = processOptionalArgs()
     argStruct = struct;
     % stack method. defaults to 'mean'
@@ -108,22 +106,34 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     [success, argValues] = processNamedVariableArgs(varargin, argStruct);
   end
 
-
-  function [index, serialCreationDate, exifMap] = loadNextFileInfo(indexPrevFile)
-    % get next file
-    index = nextFileInListing(indexPrevFile);
-    if (index ~= -1)
-      % load EXIF
-      exifMap = genExifMap(fullfile(listing(index).folder, listing(index).name));
-      % convert creation date to serial date for use in time comparisons
-      serialCreationDate = exifDateStrToSerialDate(exifMap("createdate"));
+  %
+  % Converts the raws inside the source directory, storing the resulting
+  % DNGs in a temporary directory. If successful, returns the full path
+  % to the created temporary directory, otherwise returns an empty string
+  %
+  function tempDirFullPath = convertRawsToDngs()
+    tempDirFullPath = ''; % assume error
+    if (isfield(config, 'tempDir'))
+      tempDir = createTempDir(config.tempDir);
     else
-      % no more files to process
-      serialCreationDate = 0;
-      exifMap = containers.Map();
+      tempDir = createTempDir();
     end
+    if (isempty(tempDir)) % empty string if temp dir creation failed
+      return;
+    end
+    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', sourceDir, tempDir);
+    [retSuccess, numDngsCreated] = convertDirToDng(sourceDir, tempDir);
+    if (~retSuccess)
+      deleteTempDir(tempDir);
+      return;
+    end
+    if (numDngsCreated == 0)
+      fprintf('No DNGs were created in temporary directory "%s"\n', tempDir);
+      deleteTempDir(tempDir);
+      return;
+    end
+    tempDirFullPath = tempDir; % success
   end
-
 
   %
   %**********************************************************************
@@ -137,8 +147,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   numStacksCreated  = 0;
 
   % process arguments
-  [success, config] = processOptionalArgs();
-  if (~success)
+  [retSuccess, config] = processOptionalArgs();
+  if (~retSuccess)
     return;
   end
 
@@ -148,23 +158,9 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   % convert the raws to DNGs if user hasn't already done so
   %
   if (config.convertRaws)
-    if (isfield(config, 'tempDir'))
-      tempDirFullPath = createTempDir(config.tempDir);
-    else
-      tempDirFullPath = createTempDir();
-    end
-    if (isempty(tempDirFullPath)) % empty string if temp dir creation failed
-      return;
-    end
-    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', sourceDir, tempDirFullPath);
-    [success, numDngsCreated] = convertDirToDng(sourceDir, tempDirFullPath);
-    if (~success)
-      deleteTempDir(tempDirFullPath);
-      return;
-    end
-    if (numDngsCreated == 0)
-      fprintf('No DNGs were created in temporary directory "%s"\n', tempDirFullPath);
-      deleteTempDir(tempDirFullPath);
+    tempDirFullPath = convertRawsToDngs();
+    if (isempty(tempDirFullPath))
+      % DNG creation failed
       return;
     end
     dngPath = tempDirFullPath;
@@ -250,8 +246,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       %
 
       for i=1: numFilesThisStack
-        [success, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
-        if (~success)
+        [retSuccess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        if (~retSuccess)
           break;
         end
         if (i == 1)
@@ -275,8 +271,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % load the raw data from each DNG, creating a running sum
       %
       for i=1: numFilesThisStack
-        [success, dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
-        if (~success)
+        [retSuccess, dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        if (~retSuccess)
           break;
         end
         if (i == 1)
@@ -289,7 +285,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
       imgDataOut = imgDataOut ./ numFilesThisStack;
 
-    end
+    end % switch (config.stackMethod)
 
 
     %
@@ -318,20 +314,20 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     end
 
     % copy the 1st image in the stack as our output file
-    success = copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
-    if (~success)
+    retSuccess = copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
+    if (~retSuccess)
       break;
     end
 
     % overwrite the raw data of the output file with the calculated data
-    saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
-    if (~success)
+    retSuccess = saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
+    if (~tempDirFullPath)
       break;
     end
 
     numStacksCreated = numStacksCreated+1;
 
-  end
+  end % while (indexNextFileToProcess <= numFiles)
 
   % delete temporary files+directory
   if (~isempty(tempDirFullPath))
@@ -343,7 +339,6 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   if (success)
     fprintf("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
-
   end
 
 end
