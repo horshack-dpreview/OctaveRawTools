@@ -42,6 +42,12 @@
 % location to create the subfolder to hold the DNGs converted when `'convertraws'` is true.
 % You can specify an alternate base temporary directory with this option.
 %
+% 'maxtimedelta', value
+%
+% Sets the maximum EXIF CreateDate tag time delta in seconds between images to be
+% considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to
+% disable the time delta check - all files will be considered part of a single stack.
+%
 % Examples:
 %
 %   createMedianStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')
@@ -95,6 +101,10 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, vararg
     % base path to temporary directory. if not specified we'll use system temp directory
     argStruct(4).name = 'tempDir';
     argStruct(4).class = 'char';
+    % max time interval between files to be considered part of the same stack
+    argStruct(5).name = 'maxTimeDelta';
+    argStruct(5).class = 'double';
+    argStruct(5).defaultValue = 2.0;
     [success, argValues] = processNamedVariableArgs(varargin, argStruct);
   end
 
@@ -191,26 +201,31 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, vararg
     %
     % now see what other files after our candidate should be in the stame stack
     %
-    indexNextFileInStack = indexFirstFileThisStack+1;
-    while (indexNextFileInStack <= numFiles)
+    if (config.maxTimeDelta != 0)
+      indexNextFileInStack = indexFirstFileThisStack+1;
+      maxTimeDelta =  config.maxTimeDelta + 0.01; % adding 0.01 for double-precision rounding errors
+      while (indexNextFileInStack <= numFiles)
 
-      % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
-      sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}("createdate"));
-      if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > 2.0)
-        % this file is not part of the stack we're currently building
-        break;
+        % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
+        sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}("createdate"));
+        if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > maxTimeDelta)
+          % this file is not part of the stack we're currently building
+          break;
+        end
+        if (sdThisFile < sdPrevFile)
+          % file is older than previous. shouldn't happen since we invoke exiftool to sort by createdate
+          fprintf('Warning: File "%s" has an older date than "%s" - not stacking it\n',...
+            filenamesWithPathList{indexNextFileInStack}, filenamesWithPathList{indexNextFileInStack-1});
+          break;
+        end
+        % prepare to advance to next file candiate of this stack
+        indexNextFileInStack = indexNextFileInStack+1;
+        numFilesThisStack = numFilesThisStack+1;
+        sdPrevFile = sdThisFile;
       end
-      if (sdThisFile < sdPrevFile)
-        % file is older than previous. this shouldn't happen unless the camera's DCIM file names wrapped
-        fprintf('Warning: File "%s" has an older date than "%s" - not stacking it\n',...
-          filenamesWithPathList{indexNextFileInStack}, filenamesWithPathList{indexNextFileInStack-1});
-        break;
-      end
-
-      % prepare to advance to next file candiate of this stack
-      indexNextFileInStack = indexNextFileInStack+1;
-      numFilesThisStack = numFilesThisStack+1;
-      sdPrevFile = sdThisFile;
+    else
+      % no time delta specified - user wants every file to be considered as one stack
+      numFilesThisStack = numFiles;
     end
 
     indexNextFileToProcess = indexNextFileToProcess+numFilesThisStack; % so main loop knows which file to start with on next iteration
@@ -324,7 +339,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, vararg
   end
 
   % success if we reached end of file list without encountering errors
-  success = (indexNextFileInStack > numFiles);
+  success = (indexNextFileToProcess > numFiles);
 
   if (success)
     fprintf("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);

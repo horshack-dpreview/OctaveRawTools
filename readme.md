@@ -54,6 +54,8 @@ Here are the steps the script performs in its default configuration:
 
 `'tempdir', '<path>'` - By default the script will use the system's default temporary folder location to create the subfolder to hold the DNGs converted when `'convertraws'` is true. You can specify an alternate base temporary directory with this option.
 
+`'maxtimedelta', value` - Sets the maximum EXIF CreateDate tag time delta in seconds between images to be considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to disable the time delta check - all files will be considered part of a single stack.
+
 Examples:
 `createMedianStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')`- The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory, then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs into `c:\pics\myraws`.
 
