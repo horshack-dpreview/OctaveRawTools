@@ -11,16 +11,55 @@
 %               optional file mask such as 'c:\mypics\*.nef". If no mask is
 %               specified then all files in the specified direcotry must be valid
 %               image files, otherwise the conversion will fail.
-% * outputDir - Directory to hold generated stacked images. The fiename for each
-%               created stack will be the filename of the first image in the stack
-%               with "_x_Stacked" appended to the end of the name,
-%               where <x> is the number of images used to create the stack
+% * varargin  - Optional paramters specified as <name>,<value> pairs.
+%
+% Optional paramters:
+%
+% 'stackmethod', 'median | mean'
+%
+% Algorithm to use for stacking the images. The default is median.
+%
+% 'outputdir', '<path>'
+%
+% Output directory to hold the stacked images. The default is in the source directory
+%
+% 'convertraws', true | false
+%
+% By default the script will convert your raws into the necessary uncompressed DNG format
+% the script requires `('covertraws', true)`. You can optionally perform this conversion
+% yourself prior to running the script. This is useful because the command-line version
+% of Adobe's DNG converter runs noticeably slower than the GUI version, so if you have many
+% files to stack (hundreds or thousands) then it'll be faster to convert the files using
+% the GUI and then running the script against those DNGs. When you convert the files
+% yourself you must configure Adobe's DNG converter to output uncompressed DNG files.
+% This can be done by clicking the "Change Preferences" button, then in the Preferences
+% dialog under "Compatibility" click the drop down and select "Custom". You'll see a
+% "Custom DNG Compatibility" dialog - click the "Uncompressed" checkbox.
+%
+% 'tempdir', '<path>'
+%
+% By default the script will use the system's default temporary folder
+% location to create the subfolder to hold the DNGs converted when `'convertraws'` is true.
+% You can specify an alternate base temporary directory with this option.
+%
+% Examples:
+%
+%   createMedianStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')
+%
+%   The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory,
+%   then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs
+%   into `c:\pics\myraws`.
+%
+%   createMedianStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')
+%
+%   The script will use the raws you previously converted into uncompressed DNGs, apply the `mean`
+%   algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
 %
 % _Return Values_
 % * success           - true if successful, false if not.
 % * numStacksCreated  - number of median stacks created
 %
-function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, outputDir)
+function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, varargin)
 
   SERIAL_DATE_VALUE_PER_SECOND  = double(1/(24*60*60));
 
@@ -37,6 +76,28 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     end
     indexNextFile = -1;
   end
+
+  function [success, argValues] = processOptionalArgs()
+    argStruct = struct;
+    % stack method. defaults to 'median'
+    argStruct(1).name = 'stackMethod';
+    argStruct(1).class = 'char';
+    argStruct(1).defaultValue = 'median';
+    argStruct(1).validValues = { 'median', 'mean' };
+    % output directory. defaults to source directory
+    argStruct(2).name = 'outputDir';
+    argStruct(2).class = 'char';
+    argStruct(2).defaultValue = sourceDir;
+    % flag on whether or not we convert the raws to DNG outselves. default is true
+    argStruct(3).name = 'convertRaws';
+    argStruct(3).class = 'logical';
+    argStruct(3).defaultValue = 'true';
+    % base path to temporary directory. if not specified we'll use system temp directory
+    argStruct(4).name = 'tempDir';
+    argStruct(4).class = 'char';
+    [success, argValues] = processNamedVariableArgs(varargin, argStruct);
+  end
+
 
   function [index, serialCreationDate, exifMap] = loadNextFileInfo(indexPrevFile)
     % get next file
@@ -59,35 +120,49 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
   %
   % function entry point
   %
-  %**********************************************************************
+  %**********'************************************************************
   %
 
   success = false; % assume error
   numStacksCreated  = 0;
+
+  % process arguments
+  [success, config] = processOptionalArgs();
+  if (~success)
+    return;
+  end
+
   timeStart = time();
 
   %
-  % convert the source files into uncompressed DNGs, storing them
-  % in a temporary directory
+  % convert the raws to DNGs if user hasn't already done so
   %
-  tempDir = createTempDir();
-  if (isempty(tempDir)) % empty string if temp dir creation failed
-    return;
-  end
-  fprintf('Creating temporary DNGs from raw files in "%s"...\n', tempDir);
-  [success, numDngsCreated] = convertDirToDng(sourceDir, tempDir);
-  if (~success)
-    deleteTempDir(tempDir);
-    return;
-  end
-  if (numDngsCreated == 0)
-    fprintf('No DNGs were created in temporary directory "%s"\n', tempDir);
-    deleteTempDir(tempDir);
-    return;
+  if (config.convertRaws)
+    tempDirFullPath = createTempDir(config.tempDir);
+    if (isempty(tempDirFullPath)) % empty string if temp dir creation failed
+      return;
+    end
+    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', sourceDir, tempDirFullPath);
+    [success, numDngsCreated] = convertDirToDng(sourceDir, tempDirFullPath);
+    if (~success)
+      deleteTempDir(tempDirFullPath);
+      return;
+    end
+    if (numDngsCreated == 0)
+      fprintf('No DNGs were created in temporary directory "%s"\n', tempDirFullPath);
+      deleteTempDir(tempDirFullPath);
+      return;
+    end
+    dngPath = tempDirFullPath;
+  else
+    % user performed conversion prior to running this script
+    dngPath = sourceDir;
+    tempDirFullPath = '';
   end
 
-  % get EXIF info for all the DNGs created
-  [filenamesWithPathList, exifMapList] = genExifMapForDir(tempDir);
+  % get EXIF info for all the DNGs
+  fprintf('Reading EXIF on all files in "%s"...\n', dngPath);
+  [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPath);
   numFiles = numel(exifMapList);
   if (numFiles == 0)
     % error obtaining EXIF info
@@ -143,25 +218,60 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     end
 
     %
-    % load the raw data for each DNG in the stack
+    % perform the requested operation on the raw data
     %
-    fprintf('Loading raw data for %d DNGs\n', numFilesThisStack);
-    for i=1: numFilesThisStack
-      [success, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
-      if (~success)
-        break;
+    fprintf('Loading raw data for %d DNGs to stack via "%s"\n', numFilesThisStack, config.stackMethod);
+    switch (config.stackMethod)
+    case 'median'
+
+      %
+      % first load the raw data from all DNGs. note all the raws must be in memory
+      % before we can calculate the median, which means we'll be consuming lots
+      % of memory
+      %
+
+      for i=1: numFilesThisStack
+        [success, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        if (~success)
+          break;
+        end
+        if (i == 1)
+          stripOffsetFirstFile = stack(1).dngStruct.stripOffset;
+        end
       end
+
+      % create 3D matrix of all the raw data
+      rawDataStack = [];
+      for i=1: numFilesThisStack
+        rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
+        stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
+      end
+
+      % calculate the median of all the raw data
+      imgDataOut = median(rawDataStack, 3);
+
+    case 'mean'
+
+      %
+      % load the raw data from each DNG, creating a running sum
+      %
+      for i=1: numFilesThisStack
+        [success, dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        if (~success)
+          break;
+        end
+        if (i == 1)
+          imgDataOut = uint32(dngStruct.imgData);
+          stripOffsetFirstFile = dngStruct.stripOffset;
+        else
+          imgDataOut = imgDataOut .+ uint32(dngStruct.imgData);
+        end
+      end
+
+      imgDataOut = imgDataOut ./ numFilesThisStack;
+
     end
 
-    % create 3D matrix ofthe raw data from all DNGs
-    rawDataStack = [];
-    for i=1: numFilesThisStack
-      rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
-      stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
-    end
-
-    % calculate the median of all the raw data
-    imgDataMedian = median(rawDataStack, 3);
 
     %
     % generate the output DNG to hold the median stacked data. We do this
@@ -177,8 +287,10 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
 
     % construct filename of output
     [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
-    outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked' ext];
-    outputFilenameWithPath = fullfile(outputDir, outputFilename);
+    stackMethodStr = [toupper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
+    outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked_' stackMethodStr ext];
+    outputFilenameWithPath = fullfile(config.outputDir, outputFilename);
+    outputFilenameWithPath = genUniqueFilenameIfExists(outputFilenameWithPath);
 
     % tell user about the stack we're creating
     fprintf('Creating stacked image "%s" from the following (%d) files:\n', outputFilenameWithPath, numFilesThisStack);
@@ -193,7 +305,7 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
     end
 
     % overwrite the raw data of the output file with the calculated median data
-    saveRawDataToDng(outputFilenameWithPath, stack(1).dngStruct.stripOffset, imgDataMedian);
+    saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
     if (~success)
       break;
     end
@@ -203,7 +315,9 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, output
   end
 
   % delete temporary files+directory
-  deleteTempDir(tempDir);
+  if (~isempty(tempDirFullPath))
+    deleteTempDir(tempDirFullPath);
+  end
 
   % success if we reached end of file list without encountering errors
   success = (indexNextFileInStack > numFiles);

@@ -65,6 +65,7 @@ function [success, numDngsCreated] = convertDirToDng(sourceDir, destDir)
     if (numFilesThisConversion > 0)
       [exitCode, output] = runDngConverter(['-u -d "' destDir '" ' fileListStr]);
       if (exitCode ~= 0)
+        fprintf('\n*** Note: The DNG conversion will fail if there are any non-raw images in the directory, including any hidden files like .DS_Store on OSX\n');
         return;
       end
       numFilesConverted = numFilesConverted + numFilesThisConversion;

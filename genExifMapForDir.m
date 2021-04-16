@@ -3,7 +3,14 @@
 %% genExifMapForDir
 %
 % Builds a containers.Map containing all EXIF tags and values for all images
-% files in a directory
+% files in a directory.
+%
+% When working with multiple files it's much faster to read the EXIF from all
+% files via a single invocation of exiftool rather than individually via
+% genExifMap.m. This is particularly true on Windows 10 because Windows Defender
+% appears to sandbox exiftool, triggering an intensive virus check every time
+% it executes - this takes about 0.8 seconds per invocation, even on a very fast
+% system.
 %
 % _Parameters_
 % * directorySpec - Directory to get EXIF info from. This can optimally include
@@ -49,7 +56,7 @@ function [filenamesWithPathList, exifMapList] = genExifMapForDir(directorySpec)
   % by creating a cell array, one element per file.
   %
   fileNames = regexp(exiftoolOutput, ['========\s*(.*?)[\r|\n]'], 'tokens');
-  exiftoolOutputPerFile = regexp(exiftoolOutput, ['====.*?\n(.*?)(?:====|directories scanned)'], 'tokens');
+  exiftoolOutputPerFile = regexp(exiftoolOutput, ['====.*?\n(.*?)(?:====|image files read)'], 'tokens');
   assert(numel(exiftoolOutputPerFile) == numel(fileNames), "oops: Number of files parsed not equal to number of file sections parsed");
 
   %

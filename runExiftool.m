@@ -19,7 +19,7 @@ function [exitCode, output] = runExiftool(argStr)
   if (ismac)
     exiftoolPath = '/usr/local/bin/exiftool';
   else
-    exiftoolPath = 'exiftool'
+    exiftoolPath = 'exiftool';
   end
 
   % construct full command line to invoke exiftool and its parameters
