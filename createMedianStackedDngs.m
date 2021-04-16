@@ -138,7 +138,11 @@ function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, vararg
   % convert the raws to DNGs if user hasn't already done so
   %
   if (config.convertRaws)
-    tempDirFullPath = createTempDir(config.tempDir);
+    if (isfield(config, 'tempDir'))
+      tempDirFullPath = createTempDir(config.tempDir);
+    else
+      tempDirFullPath = createTempDir();
+    end
     if (isempty(tempDirFullPath)) % empty string if temp dir creation failed
       return;
     end
