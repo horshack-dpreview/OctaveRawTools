@@ -37,8 +37,8 @@ Here are the steps the script performs in its default configuration:
 2. Invokes Adobe's DNG converter from the command line to convert all your raw files, storing them in the temporary directory created in step #1. The name of each file will be equal to the original raw file with a DNG extension.
 3. Reads the EXIF metadata from all the converted DNG files by invoking the exiftool utility.
 4. Processes the EXIF to automatically find groups of related files to stack together. Files are considered part of the same stack if their EXIF "CreateDate" tag is within 2 seconds of each other.
-5. When a group of related files is found (by EXIF creation date), the raw data from the DNGs is loaded into memory and the median is calculated for every pixel.
-6. Stores the calculated median data into a new file by duplicating the first DNG file and then overwriting the raw data with the median data. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files, the output filename will be `DSC00524_8_Stacked_Median.DNG`. The file will be stored in the same directory as "source directory".
+5. When a group of related files is found (by EXIF creation date), the raw data from the DNGs is loaded into memory and the mean or median is calculated for every pixel.
+6. Stores the calculated data into a new file by duplicating the first DNG file and then overwriting the raw data with the calculated data. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Mean` or `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files staacked via the mean method, the output filename will be `DSC00524_8_Stacked_Mean.DNG`. The file will be stored in the same directory as "source directory".
 7. The script returns to step 5 until all files are processed.
 
 ### Additional Options
