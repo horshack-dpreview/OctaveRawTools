@@ -1,5 +1,5 @@
 %
-%% createMedianStackedDngs
+%% createStackedDngs
 %
 % Performs median stacking of raw files. The images for each stack are
 % automatically detected by looking at the EXIF create time of each file - images
@@ -50,13 +50,13 @@
 %
 % Examples:
 %
-%   createMedianStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')
+%   createStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')
 %
 %   The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory,
 %   then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs
 %   into `c:\pics\myraws`.
 %
-%   createMedianStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')
+%   createStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')
 %
 %   The script will use the raws you previously converted into uncompressed DNGs, apply the `mean`
 %   algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
@@ -65,7 +65,7 @@
 % * success           - true if successful, false if not.
 % * numStacksCreated  - number of median stacks created
 %
-function [success, numStacksCreated] = createMedianStackedDngs(sourceDir, varargin)
+function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   SERIAL_DATE_VALUE_PER_SECOND  = double(1/(24*60*60));
 

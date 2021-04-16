@@ -30,7 +30,7 @@ Here's a getting-started guide on the Raw Median Stacker, including information 
 ### Usage
 To run the script with default options, enter the following in the command window then press \<enter\>:
 
-`createMedianStackedDngs("source directory")`
+`createStackedDngs("source directory")`
 
 "source directory" is the full path to the directory with the raw files you want to stack. Include the quotes to handle paths that have spaces in them. The directory should contain only raw files - if there are any non-raw image files, including hidden files like .DS_Store on OSX, then the Adobe DNG conversion will fail. As an alternate to requiring only raw files in the directory, you can include a filespec in the source directory path so that the conversion will ignore any other file types. For example, **/Users/YourName/myimages/*.ARW**. Note the mask is case-sensitive, so be sure to match the case of the extension to that of your raw files.
 
@@ -44,7 +44,7 @@ Here are the steps the script performs in its default configuration:
 7. The script returns to step 5 until all files are processed.
 
 ### Additional Options
-**createMedianStackedDngs** has the following optional parameters that let you customize its behavior. Each option is specified with a parameter name/value pair, separated by commas.
+**createStackedDngs** has the following optional parameters that let you customize its behavior. Each option is specified with a parameter name/value pair, separated by commas.
 
 `'stackmethod', 'median | mean'` - Algorithm to use for stacking the images. The default is median.
 
@@ -57,6 +57,6 @@ Here are the steps the script performs in its default configuration:
 `'maxtimedelta', value` - Sets the maximum EXIF CreateDate tag time delta in seconds between images to be considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to disable the time delta check - all files will be considered part of a single stack.
 
 Examples:
-`createMedianStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')`- The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory, then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs into `c:\pics\myraws`.
+`createStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')`- The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory, then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs into `c:\pics\myraws`.
 
-`createMedianStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')`- The script will use the raws you previously converted into uncompressed DNGs, apply the `mean` algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
+`createStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')`- The script will use the raws you previously converted into uncompressed DNGs, apply the `mean` algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
