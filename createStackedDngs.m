@@ -1,7 +1,7 @@
 %
 %% createStackedDngs
 %
-% Performs median stacking of raw files. The images for each stack are
+% Performs mean/median stacking of raw files. The images for each stack are
 % automatically detected by looking at the EXIF create time of each file - images
 % with creation times within 2 seconds of each other will be considered
 % part of the same stack. The routine will create as many stacks as it finds.
@@ -17,7 +17,7 @@
 %
 % 'stackmethod', 'median | mean'
 %
-% Algorithm to use for stacking the images. The default is median.
+% Algorithm to use for stacking the images. The default is mean.
 %
 % 'outputdir', '<path>'
 %
@@ -63,7 +63,7 @@
 %
 % _Return Values_
 % * success           - true if successful, false if not.
-% * numStacksCreated  - number of median stacks created
+% * numStacksCreated  - number of stacks created
 %
 function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
@@ -85,10 +85,10 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   function [success, argValues] = processOptionalArgs()
     argStruct = struct;
-    % stack method. defaults to 'median'
+    % stack method. defaults to 'mean'
     argStruct(1).name = 'stackMethod';
     argStruct(1).class = 'char';
-    argStruct(1).defaultValue = 'median';
+    argStruct(1).defaultValue = 'mean';
     argStruct(1).validValues = { 'median', 'mean' };
     % output directory. defaults to source directory
     argStruct(2).name = 'outputDir';
@@ -293,7 +293,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
 
     %
-    % generate the output DNG to hold the median stacked data. We do this
+    % generate the output DNG to hold the stacked data. We do this
     % by creating a copy of the first DNG in the stack, to serve as the container
     % for the modified raw data, then write the raw data to the copy.
     %
@@ -323,7 +323,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       break;
     end
 
-    % overwrite the raw data of the output file with the calculated median data
+    % overwrite the raw data of the output file with the calculated data
     saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
     if (~success)
       break;

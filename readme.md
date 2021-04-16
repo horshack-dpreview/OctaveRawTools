@@ -44,7 +44,7 @@ Here are the steps the script performs in its default configuration:
 ### Additional Options
 **createStackedDngs** has the following optional parameters that let you customize its behavior. Each option is specified with a parameter name/value pair, separated by commas.
 
-`'stackmethod', 'median | mean'` - Algorithm to use for stacking the images. The default is median.
+`'stackmethod', 'median | mean'` - Algorithm to use for stacking the images. The default is mean.
 
 `'outputdir', '<path>'` - Output directory to hold the stacked images. The default is in the source directory
 
