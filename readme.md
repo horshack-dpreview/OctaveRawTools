@@ -13,8 +13,8 @@ The tools require [exiftool](https://exiftool.org/). If exiftool is not in your 
 ## Use
 See [swapRedBlueChannelsInDng.m](https://github.com/horshack-dpreview/OctaveRawTools/blob/master/swapRedBlueChannelsInDng.m) and [applyFlatFrameToDng.m](https://github.com/horshack-dpreview/OctaveRawTools/blob/master/applyFlatFrameToDng.m) for examples on how to use the tools to read, modify, and write the raw image data in DNGs. The tools only support uncompressed DNGs, which you can create using the [Adobe DNG Converter](https://helpx.adobe.com/photoshop/using/adobe-dng-converter.html). To configure the DNG converter for uncompressed, click the "Change Preferences" button, then in the Preferences dialog under "Compatibility" click the drop down and select "Custom". You'll see a "Custom DNG Compatibility" dialog - click the "Uncompressed" checkbox.
 
-## Raw Median Stacker
-Here's a getting-started guide on the Raw Median Stacker, including information for those new to Octave.
+## Raw Image Stacker
+Here's a getting-started guide on the raw image stacker, including information for those new to Octave. The stacker combines collections of related raw files using median or mean stacking and outputs raw file(s) with the result. This is used for a variety of purposes, including reducing noise and simulating a GND filter (similar to [Sony's Smooth Reflection App](https://www.playmemoriescameraapps.com/portal/usbdetail.php?eid=IS9104-NPIA09014_00-000011)).
 
 ### Tools Required
 1. [Octave (Windows)](https://www.gnu.org/software/octave/download#ms-windows) / [Octave (Mac OSX)](https://octave-app.org/Download.html)
