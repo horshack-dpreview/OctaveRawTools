@@ -34,7 +34,7 @@ function [filenamesWithPathList, exifMapList] = genExifMapForDir(directorySpec)
   % run exiftool to get the full EXIF data. We use -s to get the condensed
   % version of the tag names (no spaces)
   %
-  [exitCode, exiftoolOutput] = runExiftool(['-s -fileOrder CreateDate "' directorySpec '"']);
+  [exitCode, exiftoolOutput] = runExiftool(['-s "' directorySpec '"']);
   if (exitCode ~= 0)
     return
   end

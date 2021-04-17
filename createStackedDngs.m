@@ -180,6 +180,15 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   end
 
   %
+  % generate a lookup table that will let us index entires in exifMapList
+  % and filenamesWithPathList in sorted order by EXIF create date. The original
+  % implementation would rely on exiftool's "-fileOrder CreateDate" option
+  % but unfortunately that increases exiftool's execution time by 2x, so we
+  % now do the sorting ourselves
+  %
+  [indexToSortedIndex, sortedDates] = genSortLookupTableForExifListDateField('createdate', exifMapList);
+
+  %
   % process files in directory, looking for collections of images to stack
   %
   indexNextFileToProcess = 1;
@@ -192,7 +201,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     stack = struct;
     numFilesThisStack = 1;
     indexFirstFileThisStack = indexNextFileToProcess;
-    sdPrevFile = exifDateStrToSerialDate(exifMapList{indexFirstFileThisStack}("createdate"));
+    %sdPrevFile = exifDateStrToSerialDate(exifMapList{indexFirstFileThisStack}('createdate'));
+    sdPrevFile = sortedDates(indexFirstFileThisStack);
 
     %
     % now see what other files after our candidate should be in the stame stack
@@ -203,15 +213,10 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       while (indexNextFileInStack <= numFiles)
 
         % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
-        sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}("createdate"));
+        %sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}('createdate'));
+        sdThisFile = sortedDates(indexNextFileInStack);
         if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > maxTimeDelta)
           % this file is not part of the stack we're currently building
-          break;
-        end
-        if (sdThisFile < sdPrevFile)
-          % file is older than previous. shouldn't happen since we invoke exiftool to sort by createdate
-          fprintf('Warning: File "%s" has an older date than "%s" - not stacking it\n',...
-            filenamesWithPathList{indexNextFileInStack}, filenamesWithPathList{indexNextFileInStack-1});
           break;
         end
         % prepare to advance to next file candiate of this stack
@@ -228,7 +233,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
     if (numFilesThisStack == 1)
       % our stack candidate turned out to be a bust. advance to next candidate
-      fprintf('Not stacking "%s"\n', filenamesWithPathList{indexFirstFileThisStack});
+      fprintf('Not stacking "%s"\n', filenamesWithPathList{sortedIndxes(indexFirstFileThisStack)});
       continue;
     end
 
@@ -246,7 +251,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       %
 
       for i=1: numFilesThisStack
-        [retSuccess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        [retSuccess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
+          exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
         if (~retSuccess)
           break;
         end
@@ -271,7 +277,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % load the raw data from each DNG, creating a running sum
       %
       for i=1: numFilesThisStack
-        [retSuccess, dngStruct] = loadDngRawData(filenamesWithPathList{indexFirstFileThisStack+i-1}, exifMapList{indexFirstFileThisStack+i-1});
+        [retSuccess, dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
+          exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
         if (~retSuccess)
           break;
         end
@@ -298,9 +305,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     % is the number of images used to create the stack
     %
 
-    firstImageInStackFilenameWithPath = filenamesWithPathList{indexFirstFileThisStack};
-
     % construct filename of output
+    firstImageInStackFilenameWithPath = filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)};
     [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
     stackMethodStr = [toupper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
     outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked_' stackMethodStr ext];
@@ -310,7 +316,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     % tell user about the stack we're creating
     fprintf('Creating stacked image "%s" from the following (%d) files:\n', outputFilenameWithPath, numFilesThisStack);
     for i=1: numFilesThisStack
-      fprintf("   -> %s\n", filenamesWithPathList{indexFirstFileThisStack+i-1});
+      fprintf("   -> %s\n", filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
     end
 
     % copy the 1st image in the stack as our output file
