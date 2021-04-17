@@ -68,6 +68,7 @@
 function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   SERIAL_DATE_VALUE_PER_SECOND  = double(1/(24*60*60));
+  SIZE_UINT16 = 2;
 
   %
   % converts an EXIF CreateDate tag value into a Matab/Octave "serial date",
@@ -272,9 +273,10 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % for very large stacks (> 64 images)
       %
       timeStartBuildMatrix = time();
-      fprintf('Building %d x %d x %d matrix of raw data...\n', stack(1).dngStruct.imageWidth,...
-        stack(1).dngStruct.imageHeight, numFilesThisStack); % note: order of width x height intentional (user-friendly)
-      rawDataStack = zeros(stack(1).dngStruct.imageHeight, stack(1).dngStruct.imageWidth, numFilesThisStack);
+      fprintf('Building %d x %d x %d matrix of raw data (size = %s)...\n', stack(1).dngStruct.imageWidth,...
+        stack(1).dngStruct.imageHeight, numFilesThisStack,...
+        genHumanReadableByteCountStr(stack(1).dngStruct.imageWidth * stack(1).dngStruct.imageHeight * SIZE_UINT16 * numFilesThisStack));
+      rawDataStack = zeros(stack(1).dngStruct.imageHeight, stack(1).dngStruct.imageWidth, numFilesThisStack, 'uint16');
       for i=1: numFilesThisStack
         rawDataStack(:,:,i) = stack(i).dngStruct.imgData;
         stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
