@@ -204,7 +204,6 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     stack = struct;
     numFilesThisStack = 1;
     indexFirstFileThisStack = indexNextFileToProcess;
-    %sdPrevFile = exifDateStrToSerialDate(exifMapList{indexFirstFileThisStack}('createdate'));
     sdPrevFile = sortedDates(indexFirstFileThisStack);
 
     %
@@ -214,14 +213,14 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       indexNextFileInStack = indexFirstFileThisStack+1;
       maxTimeDelta =  config.maxTimeDelta + 0.01; % adding 0.01 for double-precision rounding errors
       while (indexNextFileInStack <= numFiles)
-
+        
         % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
-        %sdThisFile = exifDateStrToSerialDate(exifMapList{indexNextFileInStack}('createdate'));
         sdThisFile = sortedDates(indexNextFileInStack);
         if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > maxTimeDelta)
           % this file is not part of the stack we're currently building
           break;
         end
+        
         % prepare to advance to next file candiate of this stack
         indexNextFileInStack = indexNextFileInStack+1;
         numFilesThisStack = numFilesThisStack+1;
@@ -253,7 +252,6 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % before we can calculate the median, which means we'll be consuming lots
       % of memory
       %
-
       for i=1: numFilesThisStack
         [retSuccess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
           exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
