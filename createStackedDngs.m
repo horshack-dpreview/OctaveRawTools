@@ -171,13 +171,15 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   end
 
   % get EXIF info for all the DNGs
-  fprintf('Reading EXIF on all files in "%s"...\n', dngPath);
+  timeStartExifRead = time();
+  fprintf('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPath);
   [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPath);
   numFiles = numel(exifMapList);
   if (numFiles == 0)
     % error obtaining EXIF info
     return;
   end
+  fprintf('Read EXIF data on %d files in %.2f seconds\n', numFiles, time() - timeStartExifRead);
 
   %
   % generate a lookup table that will let us index entires in exifMapList
@@ -240,7 +242,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     %
     % perform the requested operation on the raw data
     %
-    fprintf('Loading raw data for %d DNGs to stack via "%s"\n', numFilesThisStack, config.stackMethod);
+    fprintf('Loading raw data for %d DNGs to stack via "%s"...\n', numFilesThisStack, config.stackMethod);
+    timeStartLoadDngs = time();
     switch (config.stackMethod)
     case 'median'
 
@@ -260,16 +263,29 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
           stripOffsetFirstFile = stack(1).dngStruct.stripOffset;
         end
       end
+      fprintf('Loaded %d DNGs in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
 
-      % create 3D matrix of all the raw data
-      rawDataStack = [];
+      %
+      % create 3D matrix of all the raw data. we preallocate the matrix, both to
+      % make sure we have enough memory and more importantly, for performance.
+      % the alternate, using cat(), is much slower, to the point of being unsuable
+      % for very large stacks (> 64 images)
+      %
+      timeStartBuildMatrix = time();
+      fprintf('Building %d x %d x %d matrix of raw data...\n', stack(1).dngStruct.imageWidth,...
+        stack(1).dngStruct.imageHeight, numFilesThisStack); % note: order of width x height intentional (user-friendly)
+      rawDataStack = zeros(stack(1).dngStruct.imageHeight, stack(1).dngStruct.imageWidth, numFilesThisStack);
       for i=1: numFilesThisStack
-        rawDataStack = cat(3, rawDataStack, stack(i).dngStruct.imgData);
+        rawDataStack(:,:,i) = stack(i).dngStruct.imgData;
         stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
       end
+      fprintf('Built matrix of raw data in %.2f seconds\n', time() - timeStartBuildMatrix);
 
       % calculate the median of all the raw data
+      fprintf('Performing "median" calculation on matrix...\n');
+      timeStartMedian = time();
       imgDataOut = median(rawDataStack, 3);
+      fprintf('"Median" calculation done in %.2f seconds\n', time() - timeStartMedian);
 
     case 'mean'
 
@@ -291,6 +307,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       end
 
       imgDataOut = imgDataOut ./ numFilesThisStack;
+
+      fprintf('Loaded %d DNGs and applied "mean" calculation in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
 
     end % switch (config.stackMethod)
 
