@@ -15,12 +15,21 @@
 %
 function [tempDirPath] = createTempDir(baseDir)
 
-  if (exist('baseDir') && ~isempty(baseDir))
-    randFolderName = [ 'OctaveRawTools-Temp-' num2str(floor(time()*100)) ];
-    tempDirPath = fullfile(baseDir, randFolderName);
-  else
-    tempDirPath = tempname;
+  if (~exist('baseDir') || isempty(baseDir))
+    % use system tempdir if 'baseDir' not specified or it's an empty string
+    baseDir = tempdir;
   end
+
+  %
+  % generate "random" folder name based on current time. we multiply by 100
+  % to increase the time-based "randomness" to a fraction of a second
+  %
+  randFolderName = [ 'OctaveRawTools-Temp-' num2str(floor(time()*100)) ];
+
+  tempDirPath = fullfile(baseDir, randFolderName);
+
+  % create the directory
+  assert(~exist(tempDirPath)); % just in case
   status = mkdir(tempDirPath);
   if (status == 1)
       fprintf('Created temporary directory at "%s"\n', tempDirPath);
