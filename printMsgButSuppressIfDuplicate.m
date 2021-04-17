@@ -8,7 +8,7 @@
 % _Parameters_
 % * strUniqueIdentifier - A unique string identifying this message. This is different
 %     than the acutal 'msg' in case there are variations of the same message and
-%     caller wants all variations to be supressed
+%     caller wants all variations to be suppressed
 % * msg                 - Msg to print
 %
 % _Return Values_
