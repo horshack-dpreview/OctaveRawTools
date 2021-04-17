@@ -36,8 +36,9 @@ function [success, dng] = loadDngRawData(dngFilename, exifMap)
 
   function exifShouldMatch(tagName, expectedValue)
     if (~strcmpi(exifMap(tagName), expectedValue))
-      fprintf('Warning: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n', dngFilename,...
-        tagName, expectedValue, exifMap(tagName));
+      msg = sprintf('Warning: "%s", EXIF tag "%s" expected to be "%s", actual is "%s"\n',...
+        dngFilename, tagName, expectedValue, exifMap(tagName));
+      printMsgButSuppressIfDuplicate(['exifShouldMatch#' tagName], msg);
     end
   end
 
