@@ -282,17 +282,43 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     if (ispc)
       dngPathWithFileMask = fullfile(tempDirFullPath, '*.dng');
     else
-      dngPathWithFileMask = tempDirFullPath; % debug-debug : figure out how to get OSX exiftool to process file masks directly
+      %
+      % debug-debug : exiftool doesn't support globs on OSX (wildcard replacement)
+      % It's not essential for this case - we only specify *.dng as an extra
+      % measure to make sure exiftool doesn't pick up any non-DNG files, which
+      % shouldn't be the case anyway since we just created this temporary directory.
+      % The only scenario might be a .DS_Store in case the user manages to view
+      % the temp directory in the OSX Finder while we're executing
+      %
+      dngPathWithFileMask = tempDirFullPath;
     end
   else
-    % user performed conversion prior to running this script
+    %
+    % user performed DNG conversion prior to running this script, so sourceDir
+    % points to where he has the DNGs
+    %
     if (isempty(sourceDirMask))
       if (ispc)
         dngPathWithFileMask = fullfile(sourceDir, '*.dng');
       else
-        dngPathWithFileMask = sourceDir; % debug-debug : figure out how to get OSX exiftool to process file masks directly
+        %
+        % debug-debug: exiftool doesn't support globs on OSX (wildcard replacement)
+        % This should be ok in this case, provided the user doesn't have any
+        % non-DNG files in he path he specified. We could add logic to parse
+        % non-DNGs from exiftool's output but it's not a common enough case on
+        % OSX to warrant it at this point. This case will be caught in the try()
+        % block below when we generate the sort table on the CreateDate tag.
+        %
+        printMsgButSuppressIfDuplicate('OSX_Wildcard_DNG',...
+          'Warning: Assuming there no non-DNG files in path specified, otherwise logic will fail\n');
+        dngPathWithFileMask = sourceDir;
       end
     else
+      if (ismac)
+        % exiftool doesn't support globbing on OSX - https://exiftool.org/forum/index.php?topic=12402
+        fprintf('Error: Sorry, file masks aren''t supported yet on OSX\n');
+        return;
+      endif
       dngPathWithFileMask = fullfile(sourceDir, sourceDirMask);
     end
     tempDirFullPath = '';
@@ -317,7 +343,13 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   % but unfortunately that increases exiftool's execution time by 2x, so we
   % now do the sorting ourselves
   %
-  [indexToSortedIndex, sortedDates] = genSortLookupTableForExifListDateField('createdate', exifMapList);
+  try
+    [indexToSortedIndex, sortedDates] = genSortLookupTableForExifListDateField('createdate', exifMapList);
+  catch err
+    fprintf('Error: A file was processed that is missing the CreateDate EXIF tag. Perhaps your file mask included non-DNG files?\n');
+    deleteTemporaryFilesAndDir();
+    return;
+  end
 
   %
   % process files in directory, looking for collections of images to stack
