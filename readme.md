@@ -1,3 +1,4 @@
+
 # Octave Raw Tools
 
 Collection of Octave/Matlab functions for working with DNG raw image files, including reading, modifying, and writing the raw CFA bayer data contained in DNG raw image files.
@@ -28,25 +29,27 @@ Here's a getting-started guide on the raw image stacker, including information f
 ### Usage
 To run the script with default options, enter the following in the command window then press \<enter\>:
 
-`createStackedDngs("source directory")`
-
-"source directory" is the full path to the directory with the raw files you want to stack. Include the quotes to handle paths that have spaces in them. The directory should contain only raw files - if there are any non-raw image files, including hidden files like .DS_Store on OSX, then the Adobe DNG conversion will fail. As an alternate to requiring only raw files in the directory, you can include a filespec in the source directory path so that the conversion will ignore any other file types. For example, **"/Users/YourName/myimages/*.ARW"**. Note the mask is case-sensitive, so be sure to match the case of the extension to that of your raw files.
+`createStackedDngs()`
 
 Here are the steps the script performs in its default configuration:
-1. Creates a temporary directory to hold intermediate files, using your system's temporary folder. For example, on Windows 10 this will be "C:\Users\\<username\>\AppData\Local\Temp\".
-2. Invokes Adobe's DNG converter from the command line to convert all your raw files, storing them in the temporary directory created in step #1. The name of each file will be equal to the original raw file with a DNG extension.
-3. Reads the EXIF metadata from all the converted DNG files by invoking the exiftool utility.
-4. Processes the EXIF to automatically find groups of related files to stack together. Files are considered part of the same stack if their EXIF "CreateDate" tag is within 2 seconds of each other.
-5. When a group of related files is found (by EXIF creation date), the raw data from the DNGs is loaded into memory and the mean or median is calculated for every pixel.
-6. Stores the calculated data into a new file by duplicating the first DNG file and then overwriting the raw data with the calculated data. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Mean` or `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files stacked via the mean method, the output filename will be `DSC00524_8_Stacked_Mean.DNG`. The file will be stored in the same directory as "source directory".
+1. You'll be presented with a file open dialog. Navigate to the directory containing the collection of files you'd like to created stacked image(s) from, then select any file in that directory. The script will process all files in that directory that have the file extension of the file you selected. For example, if you select a file named P1040064.RW2 then all files in that directory with the "RW2" extension will be processed.
+2. Script creates a temporary directory to hold the intermediate .dng files, using your system's temporary folder. For example, on Windows 10 this will be 'C:\Users\\<username\>\AppData\Local\Temp\OctaveRawTools-Temp-xxxxx', where 'xxxxx' is a randomly generated value.
+3. Invokes Adobe's DNG converter from the command line to convert all your raw files, storing them in the temporary directory created in step #2. The name of each file will be equal to the original raw file with a .dng extension.
+4. Reads the EXIF metadata from all the converted DNG files by invoking the exiftool utility.
+5. Processes the EXIF to automatically find groups of related files to stack together. Files are considered part of the same stack if their EXIF "CreateDate" tag is within 2 seconds of each other.
+6. When a group of related files is found (by EXIF creation date), the raw data from the DNGs is loaded into memory and the mean or median is calculated for every pixel.
+7. Stores the calculated data into a new file. The name of the new file will be the same as the first file in the stack plus `x_Stacked_Mean` or `x_Stacked_Median` appended to its name, where \<x\> is the number of files that were stacked to create the image. For example, if the first file in the stack was `DSC00524.ARW` and the group has 8 files stacked via the mean method, the output filename will be `DSC00524_8_Stacked_Mean.DNG`. The stacked image will be stored in a sub-directory named `source dir\stacked`, where `source dir` is the directory you selected in step #1.
 7. The script returns to step 5 until all files are processed.
 
 ### Additional Options
+
 **createStackedDngs** has the following optional parameters that let you customize its behavior. Each option is specified with a parameter name/value pair, separated by commas.
+
+`sourceDir` - If you want to specify any optional parameters then the first parameter is always assumed to be the source directory. Specify '\<dialog\>' if you want to be presented with a file open dialog to set your source directory. Otherwise specify the specific directory you'd like to use enclosed in single quotes, such as 'c:\images\myfilestostack'. You can include an optional file mask as part of the directory - for example, 'c:\images\myfilestostack\\*.arw'. The file mask is case sensitive so be sure to match the case of the mask to the case of your files - for example, \*.ARW vs \*.arw. If no file mask is specified then all files in the directory will be processed that have a file extension matching a known raw image file. See isFilenameRawImageFile.m for the list of file extensions that will be checked - you can add to this list if your camera's raw files have a different extension.
 
 `'stackmethod', 'median | mean'` - Algorithm to use for stacking the images. The default is mean.
 
-`'outputdir', '<path>'` - Output directory to hold the stacked images. The default is in the source directory
+`'outputdir', '<path>'` - Output directory to hold the stacked images. The default is in the source directory + "stacked".
 
 `'convertraws', true | false` - By default the script will convert your raws into the necessary uncompressed DNG format the script requires `('covertraws', true)`. You can optionally perform this conversion yourself prior to running the script. This is useful because the command-line version of Adobe's DNG converter runs noticeably slower than the GUI version, so if you have many files to stack (hundreds or thousands) then it'll be faster to convert the files using the GUI and then running the script against those DNGs. When you convert the files yourself you must configure Adobe's DNG converter to output uncompressed DNG files. This can be done by clicking the "Change Preferences" button, then in the Preferences dialog under "Compatibility" click the drop down and select "Custom". You'll see a "Custom DNG Compatibility" dialog - click the "Uncompressed" checkbox.
 

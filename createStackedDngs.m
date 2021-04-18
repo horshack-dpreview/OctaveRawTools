@@ -9,8 +9,12 @@
 % _Parameters_
 % * sourceDir - Directory containing source raw files to stack. Can contain an
 %               optional file mask such as 'c:\mypics\*.nef". If no mask is
-%               specified then all files in the specified direcotry must be valid
-%               image files, otherwise the conversion will fail.
+%               specified then all files with a file extension matching a known
+%               list of raw files will be processed (see isFilenameRawImageFile.m
+%               for list of extensions). If sourceDir is not specified or is set
+%               to '<dialog>' then a UI open dialog will be presented where you
+%               can navigate to a directory and select a file - all files with that
+%               same extension will be processed in that directory.
 % * varargin  - Optional paramters specified as <name>,<value> pairs.
 %
 % Optional paramters:
@@ -21,7 +25,7 @@
 %
 % 'outputdir', '<path>'
 %
-% Output directory to hold the stacked images. The default is in the source directory
+% Output directory to hold the stacked images. The default is the source directory + "stacked"
 %
 % 'convertraws', true | false
 %
@@ -83,6 +87,9 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   % processes any optional arguments passed
   %
   function [success, argValues] = processOptionalArgs()
+
+    defaultOutputDir = fullfile(sourceDir, 'stacked');
+
     argStruct = struct;
     % stack method. defaults to 'mean'
     argStruct(1).name = 'stackMethod';
@@ -92,7 +99,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     % output directory. defaults to source directory
     argStruct(2).name = 'outputDir';
     argStruct(2).class = 'char';
-    argStruct(2).defaultValue = sourceDir;
+    argStruct(2).defaultValue = defaultOutputDir;
     % flag on whether or not we convert the raws to DNG outselves. default is true
     argStruct(3).name = 'convertRaws';
     argStruct(3).class = 'logical';
@@ -105,6 +112,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     argStruct(5).class = 'double';
     argStruct(5).defaultValue = 2.0;
     [success, argValues] = processNamedVariableArgs(varargin, argStruct);
+    % do some post-processing
+    argValues.fIsDefaultOutputDir = strcmp(argValues.outputDir, defaultOutputDir);
   end
 
   %
@@ -122,19 +131,94 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     if (isempty(tempDir)) % empty string if temp dir creation failed
       return;
     end
-    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', sourceDir, tempDir);
-    [retSuccess, numDngsCreated] = convertDirToDng(sourceDir, tempDir);
+    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', fullfile(sourceDir, sourceDirMask), tempDir);
+    [retSuccess, numDngsCreated] = convertDirToDng(sourceDir, sourceDirMask, tempDir);
     if (~retSuccess)
       deleteTempDir(tempDir);
       return;
     end
     if (numDngsCreated == 0)
-      fprintf('No DNGs were created in temporary directory "%s"\n', tempDir);
       deleteTempDir(tempDir);
       return;
     end
     tempDirFullPath = tempDir; % success
   end
+
+  function hasWildcard = doesPathHaveWildcard(path)
+    hasWildcard = strchr(sourceDir, '*') || strchr(sourceDir, '?');
+  end
+
+
+  function [sourceDir, sourceDirMask] = getSourceDirAndMask(sourceDir)
+
+    % convert 'sourceDir' into path and optional mask
+    if (strcmpi(sourceDir, "<dialog>"))
+
+      %
+      % to be helpful to the user, load the directory he selected on the previous
+      % invocation of this script as the default directory for the dialog we're
+      % about to present. This was saved as a Matlab/Octave workspace file on
+      % a previous invocation of the script.
+      %
+      defaultUiGetFileDir = pwd();
+      fullPathWorkspaceFile = fullfile(getenv('HOME'), '.OctaveRawTools_defaultSourceDirForOpenDialog');
+      if (exist(fullPathWorkspaceFile ))
+        % previous session 'defaultUiGetFileDir' available. load it, which will overwrite 'defaultUiGetFileDir'
+        load(fullPathWorkspaceFile, 'defaultUiGetFileDir');
+      end
+
+      %
+      % present the dialog that will allow the user to select a single file. That
+      % file will determine 1) What source directory we'll be using and 2) The
+      % file extension we'll use as the file mask in that directory (ie, we'll
+      % process all files in that directory matching that file extension)
+      %
+      [selectedFilename, sourceDir] = uigetfile({'*.arw;*.cr2;*.cr3;*.dng;*.nef;*.orf;*.pef;*.raf;*.rw2' 'Raw Files'},...
+        'Select a file to initiate stacking evaluation for all files in that directory with same extension',...
+        defaultUiGetFileDir);
+      if (selectedFilename == 0)
+        % user cancelled
+        sourceDir = '';
+        sourceDirMask = '';
+        return;
+      end
+      [~,~,fileExt] = fileparts(selectedFilename);
+      sourceDirMask = ['*' fileExt];
+
+      %
+      % save the directory the user selected to a Matlab/Octave workspace file
+      % in his home directory. we'll use it on a future invocation as the
+      % default directory
+      %
+      defaultUiGetFileDir = sourceDir;
+      save(fullPathWorkspaceFile, 'defaultUiGetFileDir');
+
+    else
+      if (doesPathHaveWildcard(sourceDir))
+        % mask will span filename and/or ext, so use both to reconstruct mask
+        [directory, filename, ext] = fileparts(sourceDir);
+        sourceDir = directory;
+        sourceDirMask = [filename ext];
+      else
+        % sourceDir is the full path already
+        sourceDirMask = '';
+      end
+    end
+
+    % make sure resulting sourceDir path exists
+    if (~exist(sourceDir))
+      fprintf('Error: Source directory "%s" not found\n', sourceDir);
+      sourceDir = '';
+    end
+
+  end
+
+  function deleteTemporaryFilesAndDir()
+    if (~isempty(tempDirFullPath))
+      deleteTempDir(tempDirFullPath);
+    end
+  end
+
 
   %
   %**********************************************************************
@@ -147,11 +231,42 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   success = false; % assume error
   numStacksCreated  = 0;
 
-  % process arguments
+  % process source directory
+  if (~exist('sourceDir'))
+    sourceDir = "<dialog>";
+  end
+  [sourceDir, sourceDirMask] = getSourceDirAndMask(sourceDir);
+  if (isempty(sourceDir))
+    return;
+  end
+
+  %
+  % process optional arguments, which includes setting defaults in 'config'
+  % for arguments not specified
+  %
   [retSuccess, config] = processOptionalArgs();
   if (~retSuccess)
     return;
   end
+
+  %
+  % process output directory. If an output directory was specified then it must
+  % exist, otherwise it's the default output directory we specify off the source
+  % directory and we'll create it if necessary
+  %
+  if (~exist(config.outputDir))
+    if (~config.fIsDefaultOutputDir)
+      fprintf('Error: Output directory "%s" does not exist\n', config.outputDir);
+      return;
+    else
+      retSuccess = mkdir(config.outputDir);
+      if (~retSuccess)
+        fprintf('Error: Unable to create default output directory "%s"\n', config.outputDir);
+        return;
+      end
+    end
+  end
+
 
   timeStart = time();
 
@@ -164,20 +279,25 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % DNG creation failed
       return;
     end
-    dngPath = tempDirFullPath;
+    dngPathWithFileMask = fullfile(tempDirFullPath, '*.dng');
   else
     % user performed conversion prior to running this script
-    dngPath = sourceDir;
+    if (isempty(sourceDirMask))
+      dngPathWithFileMask = fullfile(sourceDir, '*.dng');
+    else
+      dngPathWithFileMask = fullfile(sourceDir, sourceDirMask);
+    end
     tempDirFullPath = '';
   end
 
   % get EXIF info for all the DNGs
   timeStartExifRead = time();
-  fprintf('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPath);
-  [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPath);
+  fprintf('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPathWithFileMask);
+  [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPathWithFileMask);
   numFiles = numel(exifMapList);
   if (numFiles == 0)
     % error obtaining EXIF info
+    deleteTemporaryFilesAndDir();
     return;
   end
   fprintf('Read EXIF data on %d files in %.2f seconds\n', numFiles, time() - timeStartExifRead);
@@ -213,14 +333,14 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       indexNextFileInStack = indexFirstFileThisStack+1;
       maxTimeDelta =  config.maxTimeDelta + 0.01; % adding 0.01 for double-precision rounding errors
       while (indexNextFileInStack <= numFiles)
-        
+
         % if creation date of next file is > 2 seconds vs previous file it's not part of this stack
         sdThisFile = sortedDates(indexNextFileInStack);
         if ((sdThisFile - sdPrevFile) / SERIAL_DATE_VALUE_PER_SECOND  > maxTimeDelta)
           % this file is not part of the stack we're currently building
           break;
         end
-        
+
         % prepare to advance to next file candiate of this stack
         indexNextFileInStack = indexNextFileInStack+1;
         numFilesThisStack = numFilesThisStack+1;
@@ -353,10 +473,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
   end % while (indexNextFileToProcess <= numFiles)
 
-  % delete temporary files+directory
-  if (~isempty(tempDirFullPath))
-    deleteTempDir(tempDirFullPath);
-  end
+  deleteTemporaryFilesAndDir();
 
   % success if we reached end of file list without encountering errors
   success = (indexNextFileToProcess > numFiles);

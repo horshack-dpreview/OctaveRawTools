@@ -31,6 +31,15 @@ function [filenamesWithPathList, exifMapList] = genExifMapForDir(directorySpec)
   exifMapList = {};            % declared early in case of error exit
 
   %
+  % remove any trailing backslash since we enclose the directory in double
+  % quotes when building the command line, which will cause the trailing
+  % backslash to be treated as a literal quote character
+  %
+  if (directorySpec(end) == '\')
+    directorySpec = directorySpec(1:end-1);
+  end
+
+  %
   % run exiftool to get the full EXIF data. We use -s to get the condensed
   % version of the tag names (no spaces)
   %
