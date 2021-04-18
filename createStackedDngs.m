@@ -279,11 +279,19 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % DNG creation failed
       return;
     end
-    dngPathWithFileMask = fullfile(tempDirFullPath, '*.dng');
+    if (ispc)
+      dngPathWithFileMask = fullfile(tempDirFullPath, '*.dng');
+    else
+      dngPathWithFileMask = tempDirFullPath; % debug-debug : figure out how to get OSX exiftool to process file masks directly
+    end
   else
     % user performed conversion prior to running this script
     if (isempty(sourceDirMask))
-      dngPathWithFileMask = fullfile(sourceDir, '*.dng');
+      if (ispc)
+        dngPathWithFileMask = fullfile(sourceDir, '*.dng');
+      else
+        dngPathWithFileMask = sourceDir; % debug-debug : figure out how to get OSX exiftool to process file masks directly
+      end
     else
       dngPathWithFileMask = fullfile(sourceDir, sourceDirMask);
     end
