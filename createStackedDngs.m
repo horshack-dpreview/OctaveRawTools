@@ -90,6 +90,9 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
     defaultOutputDir = fullfile(sourceDir, 'stacked');
 
+    %
+    % build list of optional arguments we implement
+    %
     argStruct = struct;
     % stack method. defaults to 'mean'
     argStruct(1).name = 'stackMethod';
@@ -111,9 +114,17 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     argStruct(5).name = 'maxTimeDelta';
     argStruct(5).class = 'double';
     argStruct(5).defaultValue = 2.0;
+
+    %
+    % process the arguments passed
+    %
     [success, argValues] = processNamedVariableArgs(varargin, argStruct);
+
+    %
     % do some post-processing
+    %
     argValues.fIsDefaultOutputDir = strcmp(argValues.outputDir, defaultOutputDir);
+
   end
 
   %
@@ -131,7 +142,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     if (isempty(tempDir)) % empty string if temp dir creation failed
       return;
     end
-    fprintf('Running Adobe DNG Converter on "%s" output to "%s"...\n', fullfile(sourceDir, sourceDirMask), tempDir);
+    Logging.info('Running Adobe DNG Converter on "%s" output to "%s"...\n', fullfile(sourceDir, sourceDirMask), tempDir);
     [retSuccess, numDngsCreated] = convertDirToDng(sourceDir, sourceDirMask, tempDir);
     if (~retSuccess)
       deleteTempDir(tempDir);
@@ -144,15 +155,26 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     tempDirFullPath = tempDir; % success
   end
 
+  %
+  % determines if filename has a wildcard (ie, mask)
+  %
   function hasWildcard = doesPathHaveWildcard(path)
     hasWildcard = strchr(sourceDir, '*') || strchr(sourceDir, '?');
   end
 
-
+  %
+  % obtains a source directory and file mask (optional) to apply to that
+  % directory. the starting point is 'sourceDir', which is the parameter
+  % our main routine was passed.
+  %
   function [sourceDir, sourceDirMask] = getSourceDirAndMask(sourceDir)
 
-    % convert 'sourceDir' into path and optional mask
     if (strcmpi(sourceDir, "<dialog>"))
+
+      %
+      % user wants to select the path and file extension via the GUI
+      % file open dialog
+      %
 
       %
       % to be helpful to the user, load the directory he selected on the previous
@@ -193,7 +215,8 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       defaultUiGetFileDir = sourceDir;
       save(fullPathWorkspaceFile, 'defaultUiGetFileDir');
 
-    else
+    else % if (strcmpi(sourceDir, "<dialog>"))
+
       if (doesPathHaveWildcard(sourceDir))
         % mask will span filename and/or ext, so use both to reconstruct mask
         [directory, filename, ext] = fileparts(sourceDir);
@@ -203,16 +226,21 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
         % sourceDir is the full path already
         sourceDirMask = '';
       end
+
     end
 
     % make sure resulting sourceDir path exists
     if (~exist(sourceDir))
-      fprintf('Error: Source directory "%s" not found\n', sourceDir);
+      Logging.error('Source directory "%s" not found\n', sourceDir);
       sourceDir = '';
     end
 
   end
 
+  %
+  % deletes the temporary folder and files from the DNG conversion, if
+  % we actually did a DNG conversion for this invocation.
+  %
   function deleteTemporaryFilesAndDir()
     if (~isempty(tempDirFullPath))
       deleteTempDir(tempDirFullPath);
@@ -228,8 +256,12 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   %**********'************************************************************
   %
 
-  success = false; % assume error
+  % initialize return values (to assume error)
+  success = false;
   numStacksCreated  = 0;
+
+  % create the logging class we use to display messages
+  Logging.create();
 
   % process source directory
   if (~exist('sourceDir'))
@@ -256,24 +288,27 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   %
   if (~exist(config.outputDir))
     if (~config.fIsDefaultOutputDir)
-      fprintf('Error: Output directory "%s" does not exist\n', config.outputDir);
+      Logging.error('Output directory "%s" does not exist\n', config.outputDir);
       return;
     else
       retSuccess = mkdir(config.outputDir);
       if (~retSuccess)
-        fprintf('Error: Unable to create default output directory "%s"\n', config.outputDir);
+        Logging.error('Unable to create default output directory "%s"\n', config.outputDir);
         return;
       end
     end
   end
 
-
+  %
+  % time the entire stacking process
+  %
   timeStart = time();
 
   %
   % convert the raws to DNGs if user hasn't already done so
   %
   if (config.convertRaws)
+
     tempDirFullPath = convertRawsToDngs();
     if (isempty(tempDirFullPath))
       % DNG creation failed
@@ -292,7 +327,9 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       %
       dngPathWithFileMask = tempDirFullPath;
     end
+
   else
+
     %
     % user performed DNG conversion prior to running this script, so sourceDir
     % points to where he has the DNGs
@@ -316,17 +353,18 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     else
       if (ismac)
         % exiftool doesn't support globbing on OSX - https://exiftool.org/forum/index.php?topic=12402
-        fprintf('Error: Sorry, file masks aren''t supported yet on OSX\n');
+        Logging.error('Sorry, file masks aren''t supported yet on OSX\n');
         return;
       endif
       dngPathWithFileMask = fullfile(sourceDir, sourceDirMask);
     end
     tempDirFullPath = '';
+
   end
 
   % get EXIF info for all the DNGs
   timeStartExifRead = time();
-  fprintf('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPathWithFileMask);
+  Logging.info('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPathWithFileMask);
   [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPathWithFileMask);
   numFiles = numel(exifMapList);
   if (numFiles == 0)
@@ -334,7 +372,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     deleteTemporaryFilesAndDir();
     return;
   end
-  fprintf('Read EXIF data on %d files in %.2f seconds\n', numFiles, time() - timeStartExifRead);
+  Logging.info('Read EXIF data on %d files in %.2f seconds\n', numFiles, time() - timeStartExifRead);
 
   %
   % generate a lookup table that will let us index entires in exifMapList
@@ -346,7 +384,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   try
     [indexToSortedIndex, sortedDates] = genSortLookupTableForExifListDateField('createdate', exifMapList);
   catch err
-    fprintf('Error: A file was processed that is missing the CreateDate EXIF tag. Perhaps your file mask included non-DNG files?\n');
+    Logging.error('A file was processed that is missing the CreateDate EXIF tag. Perhaps your file mask included non-DNG files?\n');
     deleteTemporaryFilesAndDir();
     return;
   end
@@ -355,7 +393,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   % process files in directory, looking for collections of images to stack
   %
   indexNextFileToProcess = 1;
-  fprintf('Scanning DNGs to find related images for each stack...\n');
+  Logging.info('Scanning DNGs to find related images for each stack...\n');
   while (indexNextFileToProcess <= numFiles)
 
     %
@@ -395,14 +433,17 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
     if (numFilesThisStack == 1)
       % our stack candidate turned out to be a bust. advance to next candidate
-      fprintf('Not stacking "%s"\n', filenamesWithPathList{sortedIndxes(indexFirstFileThisStack)});
+      Logging.verbose('Not stacking "%s"\n', filenamesWithPathList{sortedIndxes(indexFirstFileThisStack)});
       continue;
     end
 
     %
     % perform the requested operation on the raw data
     %
-    fprintf('Loading raw data for %d DNGs to stack via "%s"...\n', numFilesThisStack, config.stackMethod);
+    [~, firstFilenameRoot, ~] = fileparts(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)});
+    [~, lastFilenameRoot, ~] = fileparts(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+numFilesThisStack-1)});
+    Logging.info('Selected %d files ["%s"..."%s"] to stack via ''%s'' - loading raw data...\n',...
+      numFilesThisStack, firstFilenameRoot, lastFilenameRoot, config.stackMethod);
     timeStartLoadDngs = time();
     switch (config.stackMethod)
     case 'median'
@@ -422,7 +463,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
           stripOffsetFirstFile = stack(1).dngStruct.stripOffset;
         end
       end
-      fprintf('Loaded %d DNGs in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
+      Logging.info('Loaded %d DNGs in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
 
       %
       % create 3D matrix of all the raw data. we preallocate the matrix, both to
@@ -431,7 +472,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % for very large stacks (> 64 images)
       %
       timeStartBuildMatrix = time();
-      fprintf('Building %d x %d x %d matrix of raw data (size = %s)...\n', stack(1).dngStruct.imageWidth,...
+      Logging.info('Building %d x %d x %d matrix of raw data (size = %s)...\n', stack(1).dngStruct.imageWidth,...
         stack(1).dngStruct.imageHeight, numFilesThisStack,...
         genHumanReadableByteCountStr(stack(1).dngStruct.imageWidth * stack(1).dngStruct.imageHeight * SIZE_UINT16 * numFilesThisStack));
       rawDataStack = zeros(stack(1).dngStruct.imageHeight, stack(1).dngStruct.imageWidth, numFilesThisStack, 'uint16');
@@ -439,13 +480,13 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
         rawDataStack(:,:,i) = stack(i).dngStruct.imgData;
         stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
       end
-      fprintf('Built matrix of raw data in %.2f seconds\n', time() - timeStartBuildMatrix);
+      Logging.info('Built matrix of raw data in %.2f seconds\n', time() - timeStartBuildMatrix);
 
       % calculate the median of all the raw data
-      fprintf('Performing "median" calculation on matrix...\n');
+      Logging.info('Performing ''median'' calculation on matrix...\n');
       timeStartMedian = time();
       imgDataOut = median(rawDataStack, 3);
-      fprintf('"Median" calculation done in %.2f seconds\n', time() - timeStartMedian);
+      Logging.info('''Median'' calculation done in %.2f seconds\n', time() - timeStartMedian);
 
     case 'mean'
 
@@ -468,7 +509,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
       imgDataOut = imgDataOut ./ numFilesThisStack;
 
-      fprintf('Loaded %d DNGs and applied "mean" calculation in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
+      Logging.info('Loaded %d DNGs and applied ''mean'' calculation in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
 
     end % switch (config.stackMethod)
 
@@ -492,10 +533,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     outputFilenameWithPath = genUniqueFilenameIfExists(outputFilenameWithPath);
 
     % tell user about the stack we're creating
-    fprintf('Creating stacked image "%s" from the following (%d) files:\n', outputFilenameWithPath, numFilesThisStack);
-    for i=1: numFilesThisStack
-      fprintf("   -> %s\n", filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
-    end
+    Logging.info('Creating stacked image "%s"...\n', outputFilenameWithPath);
 
     % copy the 1st image in the stack as our output file
     retSuccess = copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
@@ -519,7 +557,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   success = (indexNextFileToProcess > numFiles);
 
   if (success)
-    fprintf("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
+    Logging.info("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
   end
 
 end
