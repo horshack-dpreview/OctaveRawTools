@@ -1,4 +1,5 @@
 
+
 # Octave Raw Tools
 
 Collection of Octave/Matlab functions for working with DNG raw image files, including reading, modifying, and writing the raw CFA bayer data contained in DNG raw image files.
@@ -57,7 +58,19 @@ Here are the steps the script performs in its default configuration:
 
 `'maxtimedelta', value` - Sets the maximum EXIF CreateDate tag time delta in seconds between images to be considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to disable the time delta check - all files will be considered part of a single stack.
 
-#### Sample Command Lines
+#### Sample Calls
 `createStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')`- The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory, then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs into `c:\pics\myraws`.
 
 `createStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')`- The script will use the raws you previously converted into uncompressed DNGs, apply the `mean` algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
+
+### Running from the command line
+
+You can also run the script from the command line, without invoking the Octave GUI.
+
+#### Windows
+1. The octave distribution comes with an octave.bat, which launches the command-line version of Octave. You'll want to add the path to this file to your system path by clicking the Windows Start menu and typing "env", then click "Edit the system environment variables". Click "Environment Variables", select the "Path" variable (either per-user or system-wide) and click "Edit". Click "New" and type the path to your octave.bat. For example, the path on the 64-bit installation of V6.2.0 of Octave is "c:\Program Files\GNU Octave\Octave-6.2.0\mingw64\bin\".
+2. Open a command window and type the following: `octave --eval="cd <path to octave raw tools script files>; createStackedDngs()"`. For example: `octave --eval="cd 'c:\develop\octaverawtools'; createStackedDngs();"`
+
+#### OSX
+1. Create a symbolic link to octave CLI. For example, on version 6.1.0 you can use `ln -s /Applications/Octave-6.1.0.app/Contents/Resources/usr/Cellar/octave-octave-app@6.1.0/6.1.0/bin/octave-cli /usr/local/bin/octave`.
+2. Sample execution, which assumes the scripts are in an OctaveRawTools subdirectory off your home directory: `octave --eval="cd '/Users/<your user name>/OctaveRawTools'; createStackedDngs('/Users/<your user name>/Documents/Images/')"`. Note that "\<dialog\>" for the source directory may not be available on some builds.
