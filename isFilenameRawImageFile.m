@@ -32,6 +32,6 @@ function isRawFile = isFilenameRawImageFile(filename)
   end
 
   [~,~,fileExt] = fileparts(filename);
-  isRawFile = any(ismember(knownRawFileExtensions, tolower(fileExt)));
+  isRawFile = any(ismember(knownRawFileExtensions, lower(fileExt)));
 
 end

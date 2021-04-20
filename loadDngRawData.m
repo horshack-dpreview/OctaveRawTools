@@ -116,21 +116,21 @@ function [success, dng] = loadDngRawData(dngFilename, exifMap)
   % not uncompressed then any modifications to the data done in these
   % scripts will completely mangle the raw data area of the DNG
   %
-  exifShouldMatch("compression", "uncompressed");
+  exifShouldMatch('compression', 'uncompressed');
 
   %
   % Note: Some DNG translations show < 16 bits per sample even though the
   % data is actually encoded as 16 bits. For example, the GX85 reports 12 bits
   %
-  exifShouldMatch("bitspersample", "16");
+  exifShouldMatch('bitspersample', '16');
 
-  if (exifMustMatch("photometricinterpretation", "color filter array"))
+  if (exifMustMatch('photometricinterpretation', 'color filter array'))
     return;
   end
-  if (exifMustMatch("cfarepeatpatterndim", "2 2"))
+  if (exifMustMatch('cfarepeatpatterndim', '2 2'))
     return;
   end
-  if (exifMustMatch("rowsperstrip", num2str(imageHeight)))
+  if (exifMustMatch('rowsperstrip', num2str(imageHeight)))
     return;
   end
 

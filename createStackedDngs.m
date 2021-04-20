@@ -159,7 +159,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   % determines if filename has a wildcard (ie, mask)
   %
   function hasWildcard = doesPathHaveWildcard(path)
-    hasWildcard = strchr(sourceDir, '*') || strchr(sourceDir, '?');
+    hasWildcard = any(ismember(sourceDir, '*')) || any(ismember(sourceDir, '?'));
   end
 
   %
@@ -183,7 +183,12 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % a previous invocation of the script.
       %
       defaultUiGetFileDir = pwd();
-      fullPathWorkspaceFile = fullfile(getenv('HOME'), '.OctaveRawTools_defaultSourceDirForOpenDialog');
+      if (Platform.isOctave())
+        fullPathWorkspaceFile = fullfile(OS.getHomeDir(), '.OctaveRawTools_defaultSourceDirForOpenDialog');
+      else
+        % matlab requires a .mat extension, otherwise it interprets the file as ASCII
+        fullPathWorkspaceFile = fullfile(OS.getHomeDir(), '.OctaveRawTools_defaultSourceDirForOpenDialog.mat');
+      end
       if (exist(fullPathWorkspaceFile ))
         % previous session 'defaultUiGetFileDir' available. load it, which will overwrite 'defaultUiGetFileDir'
         load(fullPathWorkspaceFile, 'defaultUiGetFileDir');
@@ -256,12 +261,12 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   %**********'************************************************************
   %
 
+  % initialize common modules
+  init;
+
   % initialize return values (to assume error)
   success = false;
   numStacksCreated  = 0;
-
-  % create the logging class we use to display messages
-  Logging.create();
 
   % process source directory
   if (~exist('sourceDir'))
@@ -302,7 +307,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   %
   % time the entire stacking process
   %
-  timeStart = time();
+  timeStart = tic();
 
   %
   % convert the raws to DNGs if user hasn't already done so
@@ -355,7 +360,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
         % exiftool doesn't support globbing on OSX - https://exiftool.org/forum/index.php?topic=12402
         Logging.error('Sorry, file masks aren''t supported yet on OSX\n');
         return;
-      endif
+      end
       dngPathWithFileMask = fullfile(sourceDir, sourceDirMask);
     end
     tempDirFullPath = '';
@@ -363,7 +368,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   end
 
   % get EXIF info for all the DNGs
-  timeStartExifRead = time();
+  timeStartExifRead = tic();
   Logging.info('Running exiftool to retrieve EXIF data on files in "%s"...\n', dngPathWithFileMask);
   [filenamesWithPathList, exifMapList] = genExifMapForDir(dngPathWithFileMask);
   numFiles = numel(exifMapList);
@@ -372,7 +377,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     deleteTemporaryFilesAndDir();
     return;
   end
-  Logging.info('Read EXIF data on %d files in %.2f seconds\n', numFiles, time() - timeStartExifRead);
+  Logging.info('Read EXIF data on %d files in %.2f seconds\n', numFiles, toc(timeStartExifRead));
 
   %
   % generate a lookup table that will let us index entires in exifMapList
@@ -407,7 +412,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     %
     % now see what other files after our candidate should be in the stame stack
     %
-    if (config.maxTimeDelta != 0)
+    if (config.maxTimeDelta ~= 0)
       indexNextFileInStack = indexFirstFileThisStack+1;
       maxTimeDelta =  config.maxTimeDelta + 0.01; % adding 0.01 for double-precision rounding errors
       while (indexNextFileInStack <= numFiles)
@@ -444,7 +449,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     [~, lastFilenameRoot, ~] = fileparts(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+numFilesThisStack-1)});
     Logging.info('Selected %d files ["%s"..."%s"] to stack via ''%s'' - loading raw data...\n',...
       numFilesThisStack, firstFilenameRoot, lastFilenameRoot, config.stackMethod);
-    timeStartLoadDngs = time();
+    timeStartLoadDngs = tic();
     switch (config.stackMethod)
     case 'median'
 
@@ -463,7 +468,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
           stripOffsetFirstFile = stack(1).dngStruct.stripOffset;
         end
       end
-      Logging.info('Loaded %d DNGs in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
+      Logging.info('Loaded %d DNGs in %.2f seconds\n', numFilesThisStack, toc(timeStartLoadDngs));
 
       %
       % create 3D matrix of all the raw data. we preallocate the matrix, both to
@@ -471,7 +476,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % the alternate, using cat(), is much slower, to the point of being unsuable
       % for very large stacks (> 64 images)
       %
-      timeStartBuildMatrix = time();
+      timeStartBuildMatrix = tic();
       Logging.info('Building %d x %d x %d matrix of raw data (size = %s)...\n', stack(1).dngStruct.imageWidth,...
         stack(1).dngStruct.imageHeight, numFilesThisStack,...
         genHumanReadableByteCountStr(stack(1).dngStruct.imageWidth * stack(1).dngStruct.imageHeight * SIZE_UINT16 * numFilesThisStack));
@@ -480,13 +485,13 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
         rawDataStack(:,:,i) = stack(i).dngStruct.imgData;
         stack(i).dngStruct.imgData = []; % clear reference early so memory manager can release if possible
       end
-      Logging.info('Built matrix of raw data in %.2f seconds\n', time() - timeStartBuildMatrix);
+      Logging.info('Built matrix of raw data in %.2f seconds\n', toc(timeStartBuildMatrix));
 
       % calculate the median of all the raw data
       Logging.info('Performing ''median'' calculation on matrix...\n');
-      timeStartMedian = time();
+      timeStartMedian = tic();
       imgDataOut = median(rawDataStack, 3);
-      Logging.info('''Median'' calculation done in %.2f seconds\n', time() - timeStartMedian);
+      Logging.info('''Median'' calculation done in %.2f seconds\n', toc(timeStartMedian));
 
     case 'mean'
 
@@ -503,13 +508,13 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
           imgDataOut = uint32(dngStruct.imgData);
           stripOffsetFirstFile = dngStruct.stripOffset;
         else
-          imgDataOut = imgDataOut .+ uint32(dngStruct.imgData);
+          imgDataOut = imgDataOut + uint32(dngStruct.imgData);
         end
       end
 
       imgDataOut = imgDataOut ./ numFilesThisStack;
 
-      Logging.info('Loaded %d DNGs and applied ''mean'' calculation in %.2f seconds\n', numFilesThisStack, time() - timeStartLoadDngs);
+      Logging.info('Loaded %d DNGs and applied ''mean'' calculation in %.2f seconds\n', numFilesThisStack, toc(timeStartLoadDngs));
 
     end % switch (config.stackMethod)
 
@@ -527,7 +532,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     % construct filename of output
     firstImageInStackFilenameWithPath = filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)};
     [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
-    stackMethodStr = [toupper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
+    stackMethodStr = [upper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
     outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked_' stackMethodStr ext];
     outputFilenameWithPath = fullfile(config.outputDir, outputFilename);
     outputFilenameWithPath = genUniqueFilenameIfExists(outputFilenameWithPath);
@@ -557,7 +562,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   success = (indexNextFileToProcess > numFiles);
 
   if (success)
-    Logging.info("Created %d stack(s) in %.2f seconds\n", numStacksCreated, time() - timeStart);
+    Logging.info("Created %d stack(s) in %.2f seconds\n", numStacksCreated, toc(timeStart));
   end
 
 end

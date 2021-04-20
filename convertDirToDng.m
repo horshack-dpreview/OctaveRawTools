@@ -14,7 +14,7 @@
 %
 function [success, numDngsCreated] = convertDirToDng(sourceDir, sourceDirMask, destDir)
 
-  timeStart = time();
+  timeStart = tic();
 
   %
   % Adobe's DNG converter is heavily optimized for parallel operation, provided
@@ -89,7 +89,7 @@ function [success, numDngsCreated] = convertDirToDng(sourceDir, sourceDirMask, d
   numDngsCreated = numFilesConverted;
 
   if (numDngsCreated > 0)
-    fprintf('Adobe DNG Converter: %d DNGs converted in %.2f seconds\n', numDngsCreated, time() - timeStart);
+    fprintf('Adobe DNG Converter: %d DNGs converted in %.2f seconds\n', numDngsCreated, toc(timeStart));
   else
     if (isempty(sourceDirMask))
       fprintf('\nNo raw image files were found in "%s"\n\n', sourceDir);

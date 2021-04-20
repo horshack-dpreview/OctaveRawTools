@@ -1,7 +1,7 @@
 %
 %% Logging class
 %
-% Single-instance class for logging messages to the console, with logging level
+% Singleton class for logging messages to the console, with logging level
 % threshold for controlling which class of messages are actually printed
 %
 classdef Logging < handle;
@@ -17,8 +17,7 @@ classdef Logging < handle;
     LOGGING_LEVEL_DEFAULT   = int32(3); % can't reference Logging.LOGGING_LEVEL_INFO due to bug (https://savannah.gnu.org/bugs/?57557)
   end
 
-  %properties (Access = private)
-  properties (Access = public)
+  properties (Access = private)
     loggingLevel;
   end
 
@@ -33,8 +32,8 @@ classdef Logging < handle;
   methods (Static, Access = private)
 
     function log(loggingLevel, fmtStr, varargin_)
-      global L;
-      if (loggingLevel <= L.loggingLevel)
+      global Logging_;
+      if (loggingLevel <= Logging_.loggingLevel)
         fprintf(fmtStr, varargin_{:});
       end
     end
@@ -43,19 +42,20 @@ classdef Logging < handle;
 
   methods (Static, Access = public)
 
-    function create()
-      global L;
-      L = Logging();
+    function inst = init()
+      global Logging_;
+      Logging_ = Logging();
+      inst = Logging_;
     end
 
     function setLoggingLevel(loggingLevel)
-      global L;
-      L.loggingLevel = loggingLevel;
+      global Logging_;
+      Logging_.loggingLevel = loggingLevel;
     end
 
     function isLogging = isLevelLogged(loggingLevel)
-      global L;
-      isLogging = (L.loggingLevel >= loggingLevel);
+      global Logging_;
+      isLogging = (Logging_.loggingLevel >= loggingLevel);
     end
 
     function error(fmtStr, varargin)

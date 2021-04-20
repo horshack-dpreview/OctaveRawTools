@@ -43,6 +43,13 @@ function [filenamesWithPathList, exifMapList] = genExifMapForDir(directorySpec)
   % run exiftool to get the full EXIF data. We use -s to get the condensed
   % version of the tag names (no spaces)
   %
+  % FYI: This runs 3x slower on Matlab vs Octave due to some issue with
+  % Matlab handling stdout flow very slowly - the run time gets progressively
+  % worse the more output the pogram launched by system() performs. See
+  % this post:
+  %
+  % https://www.mathworks.com/matlabcentral/answers/338553-performance-of-system-dos-function#comment_1471942
+  %
   [exitCode, exiftoolOutput] = runExiftool(['-s "' directorySpec '"']);
   if (exitCode ~= 0)
     return
