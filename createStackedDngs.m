@@ -524,7 +524,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
     if (numFilesThisStack == 1)
       % our stack candidate turned out to be a bust. advance to next candidate
-      Logging.verbose('Not stacking "%s"\n', filenamesWithPathList{sortedIndxes(indexFirstFileThisStack)});
+      Logging.verbose('Not stacking "%s"\n', filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)});
       continue;
     end
 
