@@ -548,9 +548,6 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
 
     % overwrite the raw data of the output file with the calculated data
     retSuccess = saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
-    if (~tempDirFullPath)
-      break;
-    end
 
     numStacksCreated = numStacksCreated+1;
 
