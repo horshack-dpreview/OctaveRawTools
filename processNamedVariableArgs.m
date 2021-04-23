@@ -104,6 +104,8 @@ function [success, argValues] = processNamedVariableArgs(varargin_, argStruct)
     switch (argStruct(asi).class)
     case 'char'
       % nothing to do
+    case 'string'
+      % nothing to do
     case 'logical'
       if (strcmp(class(argValue), 'logical'))
         % nothing to do - value is already in logical type form

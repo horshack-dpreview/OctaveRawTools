@@ -52,17 +52,33 @@
 % considered part of the same sequence/stack. Default is 2.0. Specify a value of 0 to
 % disable the time delta check - all files will be considered part of a single stack.
 %
+% 'partialstacks', '<list of fractions>' (mean-stacking only)
+%
+% Creates multiple stack renditions from each set of files, with the number of images per rendition
+% equal to a fractional amount applied to the total image count for that collection of files. For
+% example, on a detected stack of 256 images you can create a stack using the first 64, 128, and then
+% all 256 images by specifying 'partialstacks', '1/4, 1/2, 1'.  You can also use decimal
+% notation: 'partialstacks', '.25, .5, 1'. This feature is useful when using stacking for ND filter
+% effects, allowing you to select from multiple renditions to select the rendition that best matches
+% your creative vision. Be sure to include the value of '1' in the list if you want a rendition that
+% includes all images. Note that the number of images for  any fractional value will be rounded down.
+% For example, if you specify 'partialstacks', '1/4, 1/2, 1' on a set with 7 images, the 1/4 value
+% will be 1 image (1/4 * 7 = 1.75, which is rounded down to 1.0). Also note that any duplicate image
+% counts resulting from similar fractional values will be discarded. For example,
+% 'partialstacks', '0.25, 0.35' on a set with 8 images will produce one stacked output with 2 images,
+% since 0.25*8 and 0.35*8 both round down to a count of 2 images.
+%
 % Examples:
 %
 %   createStackedDngs('c:\pics\myraws', 'stackmethod', 'mean')
 %
 %   The script will convert all raws in 'c:\pics\myraws' into a system-selected temporary directory,
-%   then stack related sets of files using the `mean` algorithm, storing the resulting stacked DNGs
+%   then stack related sets of files using the 'mean' algorithm, storing the resulting stacked DNGs
 %   into `c:\pics\myraws`.
 %
 %   createStackedDngs('c:\pics\mydngs', 'stackmethod', 'mean', 'convertraws', false, 'outputdir', 'c:\pics\mystackedimages')
 %
-%   The script will use the raws you previously converted into uncompressed DNGs, apply the `mean`
+%   The script will use the raws you previously converted into uncompressed DNGs, apply the 'mean'
 %   algorithm, and store the resulting stacked DNGs into `c:\pics\mystackedimages`.
 %
 % _Return Values_
@@ -84,9 +100,31 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   end
 
   %
+  % converts the optional 'partialstacks' options into a matrix of sorted values.
+  %
+  function vals = parsePartialStacksStr(str)
+    vals = []; % assume error
+    try
+      partialStacksStrs = strsplit(str, {' ', ',', ';'});
+      partialStacksVals = cellfun(@str2num, partialStacksStrs);
+      partialStacksVals = sort(partialStacksVals);
+    catch err
+      Logging.error('partailStacks: Unable to convert some value(s) of  string to values');
+      return;
+    end
+    if (any(partialStacksVals <= 0) || any(partialStacksVals > 1))
+      Logging.error('partialStacks: Some values specified were <= 0 or > 1');
+      return;
+    end
+    vals = partialStacksVals;
+  end
+
+  %
   % processes any optional arguments passed
   %
   function [success, argValues] = processOptionalArgs()
+
+    success = false; % assume error
 
     defaultOutputDir = fullfile(sourceDir, 'stacked');
 
@@ -114,16 +152,35 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     argStruct(5).name = 'maxTimeDelta';
     argStruct(5).class = 'double';
     argStruct(5).defaultValue = 2.0;
+    % partial stacks
+    argStruct(6).name = 'partialStacks';
+    argStruct(6).class = 'string';
+
 
     %
     % process the arguments passed
     %
-    [success, argValues] = processNamedVariableArgs(varargin, argStruct);
+    [retSuccess, argValues] = processNamedVariableArgs(varargin, argStruct);
+    if (~retSuccess) return; end
 
     %
     % do some post-processing
     %
+
     argValues.fIsDefaultOutputDir = strcmp(argValues.outputDir, defaultOutputDir);
+
+    if (isfield(argValues, 'partialStacks'))
+      partialStackVals = parsePartialStacksStr(argValues.partialStacks);
+      if (isempty(partialStackVals))
+        return;
+      end;
+      argValues.partialStacks = partialStackVals;
+    else
+      % partial stacks not specified - create a single value of 1, meaning a single full stack
+      argValues.partialStacks = [1];
+    end
+
+    success = true;
 
   end
 
@@ -249,6 +306,35 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
   function deleteTemporaryFilesAndDir()
     if (~isempty(tempDirFullPath))
       deleteTempDir(tempDirFullPath);
+    end
+  end
+
+  %
+  % generate the output DNG to hold the stacked data. We do this
+  % by creating a copy of the first DNG in the stack, to serve as the container
+  % for the modified raw data, then write the raw data to the copy.
+  %
+  % The output filename is equal to the filename of the first DNG in the stack,
+  % with "_x_Stacked" appended before the extension, where <x>
+  % is the number of images used to create the stack
+  %
+  function success = writeStackedImage(origFilenameWithPath, numFilesThisStack, stripOffsetFirstFile, imgData)
+
+    % generate output filename
+    [~, filename, ext] = fileparts(origFilenameWithPath);
+    stackMethodStr = [upper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
+    outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked_' stackMethodStr ext];
+    outputFilenameWithPath = fullfile(config.outputDir, outputFilename);
+    outputFilenameWithPath = genUniqueFilenameIfExists(outputFilenameWithPath);
+
+    % tell user about the stack we're creating
+    Logging.info('Creating stacked image "%s"...\n', outputFilenameWithPath);
+
+    % copy the original image in the stack as our output file
+    success = copyfile(origFilenameWithPath, outputFilenameWithPath);
+    if (success)
+      % overwrite the raw data of the output file with the calculated data
+      success = saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgData);
     end
   end
 
@@ -449,7 +535,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
     [~, lastFilenameRoot, ~] = fileparts(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+numFilesThisStack-1)});
     Logging.info('Selected %d files ["%s"..."%s"] to stack via ''%s'' - loading raw data...\n',...
       numFilesThisStack, firstFilenameRoot, lastFilenameRoot, config.stackMethod);
-    timeStartLoadDngs = tic();
+
     switch (config.stackMethod)
     case 'median'
 
@@ -458,6 +544,7 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       % before we can calculate the median, which means we'll be consuming lots
       % of memory
       %
+      timeStartLoadDngs = tic();
       for i=1: numFilesThisStack
         [retSuccess, stack(i).dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
           exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
@@ -493,63 +580,67 @@ function [success, numStacksCreated] = createStackedDngs(sourceDir, varargin)
       imgDataOut = median(rawDataStack, 3);
       Logging.info('''Median'' calculation done in %.2f seconds\n', toc(timeStartMedian));
 
+      % write stacked iamge
+      writeStackedImage(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)}, numFilesThisStack, stripOffsetFirstFile, imgDataOut);
+      numStacksCreated = numStacksCreated+1;
+
     case 'mean'
+
+      %
+      % for the partialStack feature, build a matrix of image counts corresponding
+      % to the fractional stack values specified by the user as applied to the number of
+      % images available for this stack. when the partialStack feature is not used
+      % then we'll have only a single stack count equal to 'numFilesThisStack'
+      %
+      stackImageCounts = unique(floor(config.partialStacks * numFilesThisStack));
+      if (any(stackImageCounts == 0))
+        % one of the factors translated to zero images
+        Logging.warning('A partial stack value transated to zero images when applied to a stack count %d images\n', numFilesThisStack);
+        stackImageCounts = stackImageCounts(stackImageCounts > 0); % remove zero entry
+      end
 
       %
       % load the raw data from each DNG, creating a running sum
       %
-      for i=1: numFilesThisStack
-        [retSuccess, dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
-          exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
-        if (~retSuccess)
-          break;
-        end
-        if (i == 1)
-          imgDataOut = uint32(dngStruct.imgData);
-          stripOffsetFirstFile = dngStruct.stripOffset;
-        else
-          imgDataOut = imgDataOut + uint32(dngStruct.imgData);
-        end
-      end
+      if (numel(stackImageCounts) > 0)
+        nextStackImageCountIndex = 1;
+        timeStartLoadDngs = tic();
+        for i=1:numFilesThisStack
+          [retSuccess, dngStruct] = loadDngRawData(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack+i-1)},...
+            exifMapList{indexToSortedIndex(indexFirstFileThisStack+i-1)});
+          if (~retSuccess)
+            break;
+          end
+          if (i == 1)
+            imgDataSum = uint32(dngStruct.imgData);
+            stripOffsetFirstFile = dngStruct.stripOffset;
+          else
+            imgDataSum = imgDataSum + uint32(dngStruct.imgData);
+          end
 
-      imgDataOut = imgDataOut ./ numFilesThisStack;
+          %
+          % if this image reaches the image count threshold for the next partial
+          % stack then create a stacked image
+          %
+          if (i == stackImageCounts(nextStackImageCountIndex))
 
-      Logging.info('Loaded %d DNGs and applied ''mean'' calculation in %.2f seconds\n', numFilesThisStack, toc(timeStartLoadDngs));
+            imgDataOut = imgDataSum ./ i;
+            Logging.info('Loaded %d DNGs and applied ''mean'' calculation in %.2f seconds\n', i, toc(timeStartLoadDngs));
+            writeStackedImage(filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)}, i, stripOffsetFirstFile, imgDataOut);
+
+            numStacksCreated = numStacksCreated+1;
+
+            nextStackImageCountIndex = nextStackImageCountIndex+1;
+            if (nextStackImageCountIndex > numel(stackImageCounts))
+              % no more partial counts left to process, so no need to process any other images of this stack
+              break;
+            end
+          end
+        end % for i=1:numFilesThisStack
+      end % if (numel(stackImageCounts) > 0)
 
     end % switch (config.stackMethod)
 
-
-    %
-    % generate the output DNG to hold the stacked data. We do this
-    % by creating a copy of the first DNG in the stack, to serve as the container
-    % for the modified raw data, then write the raw data to the copy.
-    %
-    % The output filename is equal to the filename of the first DNG in the stack,
-    % with "_x_Stacked" appended before the extension, where <x>
-    % is the number of images used to create the stack
-    %
-
-    % construct filename of output
-    firstImageInStackFilenameWithPath = filenamesWithPathList{indexToSortedIndex(indexFirstFileThisStack)};
-    [~, filename, ext] = fileparts(firstImageInStackFilenameWithPath);
-    stackMethodStr = [upper(config.stackMethod(1)) config.stackMethod(2:end)]; % capitalize first letter
-    outputFilename = [filename '_' num2str(numFilesThisStack) '_Stacked_' stackMethodStr ext];
-    outputFilenameWithPath = fullfile(config.outputDir, outputFilename);
-    outputFilenameWithPath = genUniqueFilenameIfExists(outputFilenameWithPath);
-
-    % tell user about the stack we're creating
-    Logging.info('Creating stacked image "%s"...\n', outputFilenameWithPath);
-
-    % copy the 1st image in the stack as our output file
-    retSuccess = copyfile(firstImageInStackFilenameWithPath, outputFilenameWithPath);
-    if (~retSuccess)
-      break;
-    end
-
-    % overwrite the raw data of the output file with the calculated data
-    retSuccess = saveRawDataToDng(outputFilenameWithPath, stripOffsetFirstFile, imgDataOut);
-
-    numStacksCreated = numStacksCreated+1;
 
   end % while (indexNextFileToProcess <= numFiles)
 
