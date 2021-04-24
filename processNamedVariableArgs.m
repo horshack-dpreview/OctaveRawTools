@@ -125,7 +125,10 @@ function [success, argValues] = processNamedVariableArgs(varargin_, argStruct)
       end
     otherwise
       % arg specified assumed to be a scalar number type (or logical). ex: 'double', 'uint32', etc...
-      argValue = cast(str2num(argValue), argStruct(asi).class);
+      if (strcmp(class(argValue), 'char'))
+        argValue = str2num(argValue);
+      end
+      argValue = cast(argValue, argStruct(asi).class);
     end
 
 
